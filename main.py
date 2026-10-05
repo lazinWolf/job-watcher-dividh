@@ -15,7 +15,9 @@ from config import (
 from evaluate import evaluate
 from models import Evaluation, Job, merge_jobs
 from sources.internshala import fetch_internshala
+from sources.indeed import fetch_indeed
 from sources.linkedin import fetch_linkedin
+from sources.naukri import fetch_naukri
 from sources.wellfound import fetch_wellfound
 from state import State, load_state, save_state
 from telegram import send_telegram
@@ -23,6 +25,8 @@ from telegram import send_telegram
 LOGGER = logging.getLogger("job_watcher")
 FETCHERS: dict[str, Callable[[], list[Job]]] = {
     "linkedin": fetch_linkedin,
+    "indeed": fetch_indeed,
+    "naukri": fetch_naukri,
     "internshala": fetch_internshala,
     "wellfound": fetch_wellfound,
 }

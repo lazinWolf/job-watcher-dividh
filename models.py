@@ -18,7 +18,7 @@ class Job:
     compensation: str | None = None
     description: str | None = None
     posted_at: datetime | None = None
-    employment_type: str | None = None  # internship, fulltime, or unknown
+    employment_type: str | None = None  # internship, fulltime, contract, parttime, temporary, or unknown
     workplace_type: str | None = None  # remote, hybrid, onsite, or unknown
     experience_min_years: int | None = None
     skills: tuple[str, ...] = ()
