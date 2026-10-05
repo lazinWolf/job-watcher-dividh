@@ -9,9 +9,10 @@ from models import Evaluation, Job
 SENIOR_TITLE = re.compile(r"\b(?:senior|sr\.?|staff|principal|lead|manager|director|head of)\b", re.I)
 ENTRY_TITLE = re.compile(r"\b(?:intern|internship|graduate|new grad|fresher|junior|entry.level|associate)\b", re.I)
 EXPERIENCE_REQUIREMENT = re.compile(
-    r"\b(\d{1,2})\s*\+?\s*(?:years?|yrs?)\s+(?:of\s+)?(?:experience|exp)\b", re.I
+    r"\b(\d{1,2})(?:\s*[-–]\s*\d{1,2})?\s*\+?\s*(?:years?|yrs?)\s+(?:of\s+)?(?:\w+[ -]+){0,3}?(?:experience|exp)\b", re.I
 )
 MANDATORY_YEARS = re.compile(r"\b(\d{1,2})\s*\+\s*years?\s+(?:mandatory|required)\b", re.I)
+EXPERIENCE_PREFIX = re.compile(r"\b(?:experience|exp)\s*:\s*(\d{1,2})(?:\s*[-–]\s*\d{1,2})?\s*\+?\s*(?:years?|yrs?)\b", re.I)
 TECH_ALIASES = {
     "node.js": (r"\bnode(?:\.js|js)\b",),
     "go": (r"\bgo\b", r"\bgolang\b"),
@@ -48,24 +49,45 @@ def _mandatory_years(description: str | None) -> int | None:
     if not description:
         return None
     years = []
-    for line in description.splitlines():
-        if re.search(r"\b(?:preferred|nice to have|plus)\b", line, re.I):
+    required_section = False
+    for line in re.split(r"[\n;.!?,]+", description):
+        heading = line.strip(" *#:-").casefold()
+        if heading in {"requirements", "qualifications", "minimum qualifications", "required qualifications"}:
+            required_section = True
             continue
-        if re.search(r"\b(?:required|mandatory|must have|minimum|at least)\b", line, re.I):
+        if heading in {"preferred qualifications", "nice to have", "benefits", "responsibilities", "about us"}:
+            required_section = False
+            continue
+        if re.search(r"\b(?:preferred|nice to have|a plus|bonus)\b", line, re.I):
+            continue
+        if re.search(r"\b(?:work|collaborate|partner|learn)\s+(?:closely\s+)?with\b", line, re.I):
+            continue
+        if required_section or re.search(r"\b(?:required|mandatory|must have|minimum|at least)\b", line, re.I):
             years.extend(int(m.group(1)) for m in EXPERIENCE_REQUIREMENT.finditer(line))
             years.extend(int(m.group(1)) for m in MANDATORY_YEARS.finditer(line))
-    return min(years) if years else None
+            years.extend(int(m.group(1)) for m in EXPERIENCE_PREFIX.finditer(line))
+    return max(years) if years else None
+
+
+def role_relevant(job: Job, profile: Profile = PROFILE) -> bool:
+    """Broad enough to enrich jobs that lack skill details or career evidence."""
+    return any(_contains(job.title, term) for term in profile.role_terms) or bool(
+        re.search(r"\b(?:software|developer|engineering)\b", job.title, re.I)
+    )
 
 
 def evaluate(job: Job, profile: Profile = PROFILE, *, now: datetime | None = None) -> Evaluation:
     now = now or datetime.now(timezone.utc)
     title = job.title.strip()
-    if SENIOR_TITLE.search(title):
+    if job.company and job.company.casefold().strip() in {name.casefold().strip() for name in profile.excluded_companies}:
+        return Evaluation(None, ("excluded company",))
+    if profile.career_stage == "early" and SENIOR_TITLE.search(title):
         return Evaluation(None, ("senior role title",))
 
     years = job.experience_min_years
-    if years is None:
-        years = _mandatory_years(title + "\n" + (job.description or ""))
+    described_years = _mandatory_years(title + "\n" + (job.description or ""))
+    if described_years is not None:
+        years = max(years, described_years) if years is not None else described_years
     if years is not None and years > profile.max_required_years:
         return Evaluation(None, (f"requires {years}+ years",))
 
@@ -96,15 +118,22 @@ def evaluate(job: Job, profile: Profile = PROFILE, *, now: datetime | None = Non
         score += 15
         reasons.append("related engineering role")
 
-    if job.employment_type == "internship" or ENTRY_TITLE.search(title):
+    early = job.employment_type == "internship" or ENTRY_TITLE.search(title)
+    if early and profile.career_stage in {"early", "any"}:
         score += 25
         reasons.append("early-career role")
-    elif years is not None and years <= 1:
+    elif profile.career_stage == "early" and years is not None and years <= max(1, profile.experience_years):
         score += 25
-        reasons.append("0–1 years experience")
-    elif years == 2:
+        reasons.append("0–1 years experience" if years <= 1 else "experience fits profile")
+    elif profile.career_stage == "early" and years is not None:
         score += 15
-        reasons.append("2 years experience")
+        reasons.append(f"{years} years experience")
+    elif not early and years is not None:
+        score += 25 if years <= profile.experience_years else 15
+        reasons.append("experience fits profile" if years <= profile.experience_years else "experience stretch")
+    elif SENIOR_TITLE.search(title) and profile.career_stage in {"experienced", "any"}:
+        score += 25
+        reasons.append("experienced role")
 
     skills = _technology_matches(job, profile)
     if skills:

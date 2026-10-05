@@ -7,12 +7,12 @@ import re
 import shutil
 import subprocess
 import tempfile
-from urllib.parse import urljoin
+from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
 from bs4 import BeautifulSoup
 
-from config import WELLFOUND_MAX_CARDS_PER_URL, WELLFOUND_URLS
-from models import Job, canonical_url, job_id, parse_posted_at
+from config import WELLFOUND_MAX_CARDS_PER_URL, WELLFOUND_PAGES_PER_SEARCH, WELLFOUND_URLS
+from models import Job, canonical_url, job_id, merge_jobs, parse_posted_at
 
 LOGGER = logging.getLogger(__name__)
 JOB_HREF = re.compile(r"^/jobs/(\d+)-")
@@ -161,6 +161,8 @@ def parse_cards(html: str, page_url: str, *, now: datetime | None = None) -> lis
         LOGGER.warning("Wellfound embedded job data unavailable; using fallback parser")
         jobs = _structured_jobs(soup, page_url)
     if jobs:
+        if len(jobs) > WELLFOUND_MAX_CARDS_PER_URL:
+            LOGGER.info("Wellfound: %d embedded listings; truncated to card limit %d", len(jobs), WELLFOUND_MAX_CARDS_PER_URL)
         return jobs[:WELLFOUND_MAX_CARDS_PER_URL]
     # The public search page has, when accessible, job links grouped with a
     # company and short listing text. Keep this fallback conservative.
@@ -206,19 +208,32 @@ def parse_cards(html: str, page_url: str, *, now: datetime | None = None) -> lis
 
 
 def fetch_wellfound() -> list[Job]:
-    jobs = []
+    jobs: dict[str, Job] = {}
     failures = []
-    for url in WELLFOUND_URLS:
-        try:
-            found = parse_cards(get_browser_page(url), url)
-            LOGGER.info("Wellfound %s: %d jobs, %d with description, %d with company",
-                        url, len(found), sum(bool(job.description) for job in found),
-                        sum(bool(job.company) for job in found))
-            jobs.extend(found)
-        except Exception as exc:
-            failures.append(f"{url}: {type(exc).__name__}: {exc}")
+    for base_url in WELLFOUND_URLS:
+        parts = urlsplit(base_url)
+        query = dict(parse_qsl(parts.query, keep_blank_values=True))
+        start_page = int(query.get("page", "1"))
+        seen_in_search: set[str] = set()
+        for page in range(start_page, start_page + WELLFOUND_PAGES_PER_SEARCH):
+            page_query = query | {"page": str(page)}
+            url = urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(page_query), ""))
+            try:
+                found = parse_cards(get_browser_page(url), url)
+                new_ids = {job.id for job in found} - seen_in_search
+                LOGGER.info("Wellfound page %d: %d listings, %d new IDs, descriptions %d/%d; page limit %d",
+                            page, len(found), len(new_ids), sum(bool(job.description) for job in found),
+                            len(found), WELLFOUND_PAGES_PER_SEARCH)
+                for job in found:
+                    jobs[job.id] = merge_jobs(jobs[job.id], job) if job.id in jobs else job
+                seen_in_search.update(new_ids)
+                if not new_ids:
+                    break
+            except Exception as exc:
+                failures.append(f"{url}: {type(exc).__name__}: {exc}")
+                break
     if not jobs and failures:
         raise RuntimeError("; ".join(failures))
     for failure in failures:
         LOGGER.warning("Wellfound query failed: %s", failure)
-    return jobs
+    return list(jobs.values())

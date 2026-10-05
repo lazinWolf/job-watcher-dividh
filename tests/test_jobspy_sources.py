@@ -43,7 +43,8 @@ def test_pay_skills_and_hybrid_are_preserved():
     job = normalize_record(dict(FIXTURES["naukri"][0],
         min_amount=600000, max_amount=900000, currency="INR", interval="yearly",
         experience_range="0-2 Yrs", skills="Python, Docker, Python",
-        work_from_home_type="Hybrid", is_remote=False), "naukri")
+        work_from_home_type="Hybrid", is_remote=False,
+        description="Minimum 0–2 years of experience required. Python and Docker."), "naukri")
     assert job.compensation == "INR 600,000–900,000 (yearly)"
     assert job.skills == ("Python", "Docker")
     assert job.experience_min_years == 0 and job.workplace_type == "hybrid"

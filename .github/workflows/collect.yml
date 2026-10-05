@@ -7,6 +7,11 @@ on:
         description: "Comma-separated sources for a manual probe"
         required: false
         default: "linkedin,internshala,indeed,naukri"
+      dry_run:
+        description: "Preview without sending alerts or changing processed IDs"
+        type: boolean
+        required: false
+        default: false
   schedule:
     - cron: "17 */4 * * *"
 
@@ -57,9 +62,16 @@ jobs:
         env:
           JOB_WATCHER_STATE_PATH: ${{ runner.temp }}/job-watcher-state/seen.json
           JOB_WATCHER_SOURCES: ${{ inputs.sources }}
+          JOB_WATCHER_PROFILE_JSON: ${{ secrets.JOB_WATCHER_PROFILE_JSON }}
+          JOB_WATCHER_DRY_RUN: ${{ inputs.dry_run }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python main.py
+        run: |
+          if [ "$JOB_WATCHER_DRY_RUN" = "true" ]; then
+            python main.py --dry-run
+          else
+            python main.py
+          fi
 
       - name: Persist state
         if: always() && steps.restore.outcome == 'success'

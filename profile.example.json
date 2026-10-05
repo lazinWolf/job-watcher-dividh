@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "is_example": true,
+  "profile": {
+    "role_terms": ["backend", "software engineer", "software developer", "full stack"],
+    "skills": ["python", "go", "node.js", "fastapi", "postgresql", "docker", "linux"],
+    "job_types": ["internship", "fulltime"],
+    "career_stage": "early",
+    "experience_years": 0,
+    "max_required_years": 2,
+    "allowed_locations": [],
+    "preferred_workplaces": [],
+    "excluded_companies": [],
+    "accept_unpaid_internships": true
+  }
+}

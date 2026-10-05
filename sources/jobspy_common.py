@@ -161,6 +161,9 @@ def fetch_jobs(
                 options["country_indeed"] = country
             records = scrape_jobs(**options).to_dict("records")
             parsed = [job for record in records if (job := normalize_record(record, source))]
+            LOGGER.info("%s query %r: %d returned, %d parsed, result limit %d%s", source,
+                        term, len(records), len(parsed), results_per_search,
+                        "; cap reached, more results may exist" if len(records) >= results_per_search else "")
             if records and not parsed:
                 errors.messages.append("results did not contain valid job titles and URLs")
             if errors.messages:

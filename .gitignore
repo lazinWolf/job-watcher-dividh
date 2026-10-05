@@ -4,6 +4,8 @@ __pycache__/
 *.py[cod]
 seen.json
 .env
+/profile.json
+/run-report.json
 
 # Local planning documents; keep these out of the repository.
 /IMPLEMENTATION_PLAN.md

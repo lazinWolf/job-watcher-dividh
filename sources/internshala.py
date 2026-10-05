@@ -1,15 +1,20 @@
 """Parse public Internshala search cards without visiting every detail page."""
 
 from datetime import datetime, timezone
+from dataclasses import replace
 import logging
 import re
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
-from config import INTERNSHALA_MAX_CARDS_PER_URL, INTERNSHALA_URLS
-from models import Job, canonical_url, job_id, parse_posted_at
+from config import (
+    INTERNSHALA_MAX_CARDS_PER_URL, INTERNSHALA_MAX_DETAIL_FETCHES, INTERNSHALA_URLS,
+    PROFILE, Profile,
+)
+from models import Job, canonical_url, job_id, merge_jobs, parse_posted_at
 from sources import get_public_page
+from sources.enrichment import enrich_jobs
 
 LOGGER = logging.getLogger(__name__)
 
@@ -67,10 +72,26 @@ def parse_cards(html: str, page_url: str, *, now: datetime | None = None) -> lis
         ))
     if not jobs:
         raise ValueError("Internshala listing cards could not be normalized")
+    LOGGER.info("Internshala: %d cards found, %d parsed; card limit %d%s", len(cards), len(jobs),
+                INTERNSHALA_MAX_CARDS_PER_URL,
+                "; results truncated" if len(cards) > INTERNSHALA_MAX_CARDS_PER_URL else "")
     return jobs
 
 
-def fetch_internshala() -> list[Job]:
+def parse_detail(html: str, job: Job) -> Job:
+    soup = BeautifulSoup(html, "html.parser")
+    description = soup.select_one(".internship_details .text-container")
+    if description is None:
+        raise ValueError("Internshala public description was unavailable")
+    # Only actual requirement tags count; the page also advertises training courses.
+    heading = soup.select_one(".internship_details .skills_heading")
+    required_skills = heading.find_next_sibling("div", class_="round_tabs_container") if heading else None
+    skills = tuple(tag.get_text(" ", strip=True) for tag in required_skills.select(".round_tabs")) if required_skills else ()
+    return replace(job, description=description.get_text("\n", strip=True),
+                   skills=tuple(dict.fromkeys((*job.skills, *skills))))
+
+
+def fetch_internshala(*, profile: Profile = PROFILE, processed_ids: set[str] | None = None) -> list[Job]:
     jobs = []
     failures = []
     for url in INTERNSHALA_URLS:
@@ -82,4 +103,11 @@ def fetch_internshala() -> list[Job]:
         raise RuntimeError("; ".join(failures))
     for failure in failures:
         LOGGER.warning("Internshala query failed: %s", failure)
-    return jobs
+    combined: dict[str, Job] = {}
+    for job in jobs:
+        combined[job.id] = merge_jobs(combined[job.id], job) if job.id in combined else job
+    return enrich_jobs(
+        list(combined.values()), lambda job: parse_detail(get_public_page(job.url), job),
+        limit=INTERNSHALA_MAX_DETAIL_FETCHES, profile=profile, processed_ids=processed_ids,
+        minimum_description_chars=300,
+    )
