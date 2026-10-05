@@ -4,3 +4,7 @@ __pycache__/
 *.py[cod]
 seen.json
 .env
+
+# Local planning documents; keep these out of the repository.
+/IMPLEMENTATION_PLAN.md
+/NEXT_VERSION_PLAN.md

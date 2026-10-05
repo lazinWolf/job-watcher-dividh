@@ -2,8 +2,6 @@
 
 A small Python watcher for public LinkedIn, Internshala, Indeed, and Naukri listings. It filters and scores jobs against one editable profile, then sends selected jobs to Telegram. An optional Wellfound collector uses headless Chrome to read public search pages and is disabled by default while its reliability is evaluated. Applications stay manual.
 
-The full design and tradeoffs are in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
-
 ## Set your profile
 
 Edit `PROFILE` and the search settings in `config.py`. The committed values are **examples for testing**, not a claim about the user's experience or location. The script automatically uses dry-run mode while `PROFILE_IS_EXAMPLE = True`, so it cannot send generic-profile alerts. Set it to `False` only after entering your real preferences and reviewing a dry run.
