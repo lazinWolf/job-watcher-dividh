@@ -14,7 +14,7 @@ from config import (
 )
 from models import Job, canonical_url, job_id, merge_jobs, parse_posted_at
 from sources import get_public_page
-from sources.enrichment import enrich_jobs
+from sources.enrichment import detail_text, enrich_jobs
 
 LOGGER = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ def parse_detail(html: str, job: Job) -> Job:
     heading = soup.select_one(".internship_details .skills_heading")
     required_skills = heading.find_next_sibling("div", class_="round_tabs_container") if heading else None
     skills = tuple(tag.get_text(" ", strip=True) for tag in required_skills.select(".round_tabs")) if required_skills else ()
-    return replace(job, description=description.get_text("\n", strip=True),
+    return replace(job, description=detail_text(description),
                    skills=tuple(dict.fromkeys((*job.skills, *skills))))
 
 

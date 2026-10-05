@@ -10,7 +10,7 @@ from config import (
 )
 from models import Job
 from sources import get_public_page
-from sources.enrichment import enrich_jobs
+from sources.enrichment import detail_text, enrich_jobs
 from sources.jobspy_common import fetch_jobs, normalize_record as normalize_jobspy_record
 
 
@@ -30,7 +30,7 @@ def parse_detail(html: str, job: Job) -> Job:
         if heading and value and heading.get_text(strip=True).casefold() == "employment type":
             normalized = normalize_record({"title": job.title, "job_url": job.url, "job_type": value.get_text(strip=True)})
             employment = normalized.employment_type if normalized else None
-    return replace(job, description=description.get_text("\n", strip=True),
+    return replace(job, description=detail_text(description),
                    employment_type=job.employment_type or employment)
 
 

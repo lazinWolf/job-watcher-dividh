@@ -130,6 +130,18 @@ def test_public_detail_parsers_preserve_identity_and_ignore_training_and_perks()
         linkedin.parse_detail("Please sign in", candidate)
 
 
+def test_inline_html_does_not_hide_experience_and_block_headings_stay_separate():
+    html = '''<div class="show-more-less-html__markup"><p>Requirements</p>
+    <ul><li>Minimum <strong>5</strong> years of experience required.</li></ul>
+    <p>Preferred qualifications</p><p><b>9</b> years of experience.</p></div>'''
+    enriched = linkedin.parse_detail(html, job(source="linkedin"))
+    assert "Minimum 5 years of experience required." in enriched.description
+    assert evaluate(enriched).reasons == ("requires 5+ years",)
+    html = html.replace("5", "1")
+    enriched = linkedin.parse_detail(html, job(source="linkedin"))
+    assert evaluate(enriched).score is not None  # preferred nine years does not reject
+
+
 def test_wellfound_two_pages_preserve_queries_and_merge_overlap(monkeypatch):
     seen = []
     monkeypatch.setattr(wellfound, "WELLFOUND_URLS", ("https://wellfound.com/role/l/software-engineer/india?remote=true",))

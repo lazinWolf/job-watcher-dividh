@@ -10,6 +10,17 @@ from models import Job, merge_jobs
 LOGGER = logging.getLogger(__name__)
 
 
+def detail_text(element) -> str:
+    """Keep inline phrases together and separate block paragraphs/requirements."""
+    for line_break in element.find_all("br"):
+        line_break.replace_with("\n")
+    for block in element.find_all(["p", "div", "li", "h1", "h2", "h3", "h4", "h5"]):
+        block.insert_before("\n")
+        block.append("\n")
+    lines = (" ".join(line.split()) for line in element.get_text(" ").splitlines())
+    return "\n".join(line for line in lines if line)
+
+
 def enrich_jobs(
     jobs: list[Job], fetch_detail: Callable[[Job], Job], *, limit: int,
     profile: Profile = PROFILE, processed_ids: set[str] | None = None,
