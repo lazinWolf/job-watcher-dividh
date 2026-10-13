@@ -27,7 +27,13 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || vars.JOB_WATCHER_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      HEALTHCHECKS_PING_URL: ${{ secrets.HEALTHCHECKS_PING_URL }}
     steps:
+      - name: Signal run start
+        if: env.HEALTHCHECKS_PING_URL != ''
+        run: curl -fsS -m 10 --retry 3 -o /dev/null "$HEALTHCHECKS_PING_URL/start" || true
+
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: true
@@ -52,6 +58,8 @@ jobs:
           if git ls-remote --exit-code --heads origin state >/dev/null; then
             git fetch origin state:refs/remotes/origin/state
             git show origin/state:seen.json > "$state_dir/seen.json"
+            # Older state branches have no history; the watcher creates it on a live run.
+            git show origin/state:history.jsonl > "$state_dir/history.jsonl" 2>/dev/null || rm -f "$state_dir/history.jsonl"
           else
             printf '{"version": 1, "processed": []}\n' > "$state_dir/seen.json"
           fi
@@ -61,6 +69,7 @@ jobs:
         continue-on-error: true
         env:
           JOB_WATCHER_STATE_PATH: ${{ runner.temp }}/job-watcher-state/seen.json
+          JOB_WATCHER_HISTORY_PATH: ${{ runner.temp }}/job-watcher-state/history.jsonl
           JOB_WATCHER_SOURCES: ${{ inputs.sources }}
           JOB_WATCHER_PROFILE_JSON: ${{ secrets.JOB_WATCHER_PROFILE_JSON }}
           JOB_WATCHER_DRY_RUN: ${{ inputs.dry_run }}
@@ -68,10 +77,19 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ "$JOB_WATCHER_DRY_RUN" = "true" ]; then
-            python main.py --dry-run
+            python main.py --dry-run --report "$RUNNER_TEMP/run-report.json"
           else
-            python main.py
+            python main.py --report "$RUNNER_TEMP/run-report.json"
           fi
+
+      - name: Upload run report
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: run-report
+          path: ${{ runner.temp }}/run-report.json
+          retention-days: 30
+          if-no-files-found: ignore
 
       - name: Persist state
         if: always() && steps.restore.outcome == 'success'
@@ -89,12 +107,25 @@ jobs:
           fi
           cp "$state_dir/seen.json" "$worktree/seen.json"
           git -C "$worktree" add seen.json
+          if [ -f "$state_dir/history.jsonl" ]; then
+            cp "$state_dir/history.jsonl" "$worktree/history.jsonl"
+            git -C "$worktree" add history.jsonl
+          fi
           if ! git -C "$worktree" diff --cached --quiet; then
             git -C "$worktree" config user.name "github-actions[bot]"
             git -C "$worktree" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git -C "$worktree" commit -m "Update job watcher state"
             git -C "$worktree" push origin HEAD:state
           fi
+
+      - name: Signal run result
+        if: always() && env.HEALTHCHECKS_PING_URL != ''
+        env:
+          COLLECT_OUTCOME: ${{ steps.collect.outcome }}
+        run: |
+          # Skipped collection (failed tests or setup) counts as a failure.
+          if [ "$COLLECT_OUTCOME" = "success" ]; then suffix=""; else suffix="/fail"; fi
+          curl -fsS -m 10 --retry 3 -o /dev/null "$HEALTHCHECKS_PING_URL$suffix" || true
 
       - name: Report collection failure
         if: always() && steps.collect.outcome == 'failure'

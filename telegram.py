@@ -25,12 +25,16 @@ def format_message(job: Job, evaluation: Evaluation) -> str:
 
 
 def send_telegram(job: Job, evaluation: Evaluation) -> None:
+    send_text(format_message(job, evaluation))
+
+
+def send_text(text: str) -> None:
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     chat_id = os.getenv("TELEGRAM_CHAT_ID")
     if not token or not chat_id:
         raise DeliveryError("TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are required")
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = {"chat_id": chat_id, "text": format_message(job, evaluation), "disable_web_page_preview": True}
+    payload = {"chat_id": chat_id, "text": text[:4096], "disable_web_page_preview": True}
     for attempt in range(3):
         try:
             response = requests.post(url, json=payload, timeout=(5, 15))

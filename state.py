@@ -32,9 +32,12 @@ def load_state(path: Path, *, initialize: bool = False) -> State:
 
 
 def save_state(path: Path, state: State) -> None:
+    write_atomic(path, json.dumps({"version": STATE_VERSION, "processed": sorted(state.processed)}, indent=2) + "\n")
+
+
+def write_atomic(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    content = json.dumps({"version": STATE_VERSION, "processed": sorted(state.processed)}, indent=2) + "\n"
-    descriptor, temporary = tempfile.mkstemp(prefix=".seen-", dir=path.parent)
+    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.stem}-", dir=path.parent)
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as output:
             output.write(content)

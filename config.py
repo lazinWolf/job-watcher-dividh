@@ -65,3 +65,8 @@ LINKEDIN_MAX_DETAIL_FETCHES = min(20, max(0, _env_int("JOB_WATCHER_LINKEDIN_DETA
 INTERNSHALA_MAX_DETAIL_FETCHES = min(10, max(0, _env_int("JOB_WATCHER_INTERNSHALA_DETAILS", 10)))
 WELLFOUND_PAGES_PER_SEARCH = min(2, max(1, _env_int("JOB_WATCHER_WELLFOUND_PAGES", 2)))
 HTTP_TIMEOUT = (5, 20)
+
+# Monitoring: alert after this many consecutive failed or empty runs of a
+# source, and keep this many run records in the history file.
+HEALTH_ALERT_RUNS = max(1, _env_int("JOB_WATCHER_HEALTH_RUNS", 3))
+HISTORY_KEEP_RUNS = max(1, _env_int("JOB_WATCHER_HISTORY_RUNS", 500))

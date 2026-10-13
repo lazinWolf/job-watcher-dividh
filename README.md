@@ -99,6 +99,14 @@ Changing scoring rules does not revisit old processed jobs. Use saved fixtures a
 
 Changing a JSON profile also does not rescore processed listings in the existing state. This incremental version retains the collect → score → Telegram workflow and version-1 state format; it does not introduce a catalog, dashboard, synchronization branches, daily digest, or LLM requirement. Per-source summaries now include description coverage and duration, and equally ranked listings use a stable ID tie-breaker.
 
+## Monitoring
+
+Each run's `--report` JSON (version 2) includes a decision log: every new listing's source, title, company, location, URL, score, outcome (`sent`, `delivery_failed`, `deferred`, `rejected`, `below_threshold`, `evaluation_failed`, or `would_send` in dry run), and reasons, plus rejection-reason counts. Descriptions are still left out. The workflow always writes the report and uploads it as the `run-report` artifact for 30 days; use it to find listings that were rejected for the wrong reason.
+
+Live runs append a compact record (counts and per-source status, no listings) to `history.jsonl`, kept on the `state` branch next to `seen.json` and trimmed to the last `JOB_WATCHER_HISTORY_RUNS` runs (default 500). From that history the watcher sends a Telegram message when a source has failed or returned no listings for `JOB_WATCHER_HEALTH_RUNS` consecutive runs that included it (default 3), and another when it recovers. Dry runs write neither history nor health messages. Problems with history or health messages are logged and never fail a run. Locally the history file sits next to the state file unless `JOB_WATCHER_HISTORY_PATH` is set; set `JOB_WATCHER_LOG_LEVEL=DEBUG` for more detail.
+
+Health messages cannot report a schedule that stopped running. For that, create a free [Healthchecks.io](https://healthchecks.io) check with a 6-hour period and 8 hours of grace, then add its ping URL as the `HEALTHCHECKS_PING_URL` repository secret. The workflow pings when it starts and pings success or `/fail` when it ends; failed tests or setup count as failures. Without the secret, the pings are skipped. The grace is generous on purpose: GitHub delays and drops scheduled runs, and the 4-hour schedule was observed to run about three times a day with gaps of up to 12 hours.
+
 ## Tests
 
 ```sh
