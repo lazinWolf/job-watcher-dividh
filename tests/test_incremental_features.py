@@ -12,6 +12,9 @@ from profiles import parse_profile
 from sources.enrichment import enrich_jobs
 from sources import internshala, linkedin, wellfound
 
+PROFILE = Profile()
+EXAMPLE_PROFILE = Path(__file__).parent.parent / "profile.example.json"
+
 
 def job(number=1, **changes):
     return Job(**(dict(id=f"test:{number}", source="test", title="Backend Engineer Intern",
@@ -27,7 +30,7 @@ def test_profile_round_trip_defaults_and_company_exclusion():
     assert example and profile.excluded_companies == ("Example",)
     assert evaluate(job(company="example"), profile).reasons == ("excluded company",)
     assert evaluate(job(company="Example Labs"), profile).score is not None
-    assert parse_profile(Path("profile.example.json").read_text())[1] is True
+    assert parse_profile(EXAMPLE_PROFILE.read_text())[1] is True
 
 
 @pytest.mark.parametrize("changes", [
@@ -63,7 +66,7 @@ def test_environment_profile_changes_matching_and_is_validated_before_collection
 
 def test_experienced_profile_can_match_senior_role():
     candidate = job(title="Senior Backend Engineer", experience_min_years=5)
-    assert evaluate(candidate).score is None
+    assert evaluate(candidate, PROFILE).score is None
     profile = Profile(career_stage="experienced", experience_years=6, max_required_years=6)
     assert evaluate(candidate, profile).score == 70
     assert evaluate(replace(candidate, experience_min_years=8), profile).score is None
@@ -77,16 +80,16 @@ def test_experienced_profile_can_match_senior_role():
     "Minimum 3 years of experience required, 8 years of experience preferred.",
 ])
 def test_required_ranges_and_strongest_requirement_are_checked(description):
-    assert evaluate(job(description=description)).score is None
+    assert evaluate(job(description=description), PROFILE).score is None
 
 
 def test_preferred_experience_and_colleague_experience_do_not_reject():
     description = "Requirements\nWork with senior engineers with 10 years of experience.\nPreferred qualifications\n5 years of experience."
-    assert evaluate(job(description=description)).score == 70
+    assert evaluate(job(description=description), PROFILE).score == 70
 
 
 def test_description_requirement_is_not_hidden_by_sparse_source_field():
-    result = evaluate(job(experience_min_years=0, description="Minimum 8 years of experience required."))
+    result = evaluate(job(experience_min_years=0, description="Minimum 8 years of experience required."), PROFILE)
     assert result.reasons == ("requires 8+ years",)
 
 
@@ -98,7 +101,7 @@ def test_enrichment_is_capped_skips_processed_and_keeps_failures():
         if candidate.id == "test:2":
             raise RuntimeError("blocked")
         return replace(candidate, description="Build Python APIs")
-    results = enrich_jobs(candidates, detail, limit=3, processed_ids={"test:0"})
+    results = enrich_jobs(candidates, detail, limit=3, profile=PROFILE, processed_ids={"test:0"})
     assert called == ["test:1", "test:2", "test:3"]
     assert results[1].description and results[2] == candidates[2] and results[3].description
     assert len(results) == len(candidates)
@@ -110,7 +113,7 @@ def test_enrichment_stops_after_three_failures_and_ignores_existing_descriptions
         called.append(candidate.id)
         raise RuntimeError("blocked")
     candidates = [job(0, description="Already complete")] + [job(i) for i in range(1, 9)]
-    assert enrich_jobs(candidates, fail, limit=20) == candidates
+    assert enrich_jobs(candidates, fail, limit=20, profile=PROFILE) == candidates
     assert len(called) == 3
 
 
@@ -136,10 +139,10 @@ def test_inline_html_does_not_hide_experience_and_block_headings_stay_separate()
     <p>Preferred qualifications</p><p><b>9</b> years of experience.</p></div>'''
     enriched = linkedin.parse_detail(html, job(source="linkedin"))
     assert "Minimum 5 years of experience required." in enriched.description
-    assert evaluate(enriched).reasons == ("requires 5+ years",)
+    assert evaluate(enriched, PROFILE).reasons == ("requires 5+ years",)
     html = html.replace("5", "1")
     enriched = linkedin.parse_detail(html, job(source="linkedin"))
-    assert evaluate(enriched).score is not None  # preferred nine years does not reject
+    assert evaluate(enriched, PROFILE).score is not None  # preferred nine years does not reject
 
 
 def test_wellfound_two_pages_preserve_queries_and_merge_overlap(monkeypatch):
@@ -200,3 +203,12 @@ def test_runtime_profile_and_processed_ids_reach_enrichment(tmp_path, monkeypatc
     assert seen["processed_ids"] == {"test:1"}
     assert seen["profile"].excluded_companies == ("Example",)
     assert summary.new == 0 and summary.collected == 1
+
+
+def test_numeric_settings_name_the_bad_variable(monkeypatch):
+    import config
+    monkeypatch.setenv("JOB_WATCHER_MAX_ALERTS", "")
+    assert config._env_int("JOB_WATCHER_MAX_ALERTS", 10) == 10
+    monkeypatch.setenv("JOB_WATCHER_MAX_ALERTS", "ten")
+    with pytest.raises(ValueError, match="JOB_WATCHER_MAX_ALERTS"):
+        config._env_int("JOB_WATCHER_MAX_ALERTS", 10)

@@ -126,7 +126,10 @@ def _structured_jobs(soup: BeautifulSoup, page_url: str) -> list[Job]:
             raw_url = item.get("url")
             if not isinstance(title, str) or not isinstance(raw_url, str):
                 continue
-            url = canonical_url(urljoin(page_url, raw_url))
+            try:
+                url = canonical_url(urljoin(page_url, raw_url))
+            except ValueError:
+                continue
             organization = item.get("hiringOrganization") or {}
             place = item.get("jobLocation") or {}
             if isinstance(place, list):

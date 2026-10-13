@@ -9,10 +9,12 @@ import pytest
 
 import main
 from evaluate import evaluate
+from profiles import Profile
 from sources import indeed, linkedin, naukri
 from sources.jobspy_common import fetch_jobs, normalize_record
 
 NOW = datetime(2026, 10, 5, tzinfo=timezone.utc)
+PROFILE = Profile()
 FIXTURES = json.loads((Path(__file__).parent / "fixtures/jobspy_listings.json").read_text())
 
 
@@ -24,7 +26,7 @@ def test_live_naukri_fields_reject_senior_experience_despite_generic_title():
     assert job.workplace_type == "onsite"
     assert job.employment_type == "fulltime"
     assert job.description and job.location == "Bengaluru, India"
-    assert evaluate(job, now=NOW).reasons == ("requires 8+ years",)
+    assert evaluate(job, PROFILE, now=NOW).reasons == ("requires 8+ years",)
 
 
 def test_indeed_identity_and_sparse_fields_from_live_sample():
@@ -48,7 +50,7 @@ def test_pay_skills_and_hybrid_are_preserved():
     assert job.compensation == "INR 600,000–900,000 (yearly)"
     assert job.skills == ("Python", "Docker")
     assert job.experience_min_years == 0 and job.workplace_type == "hybrid"
-    assert evaluate(job, now=NOW).score >= 60
+    assert evaluate(job, PROFILE, now=NOW).score >= 60
 
 
 @pytest.mark.parametrize("experience", [None, float("nan"), "Not disclosed", "Fresher", "2 months", "2-3", "8-2 Yrs"])
@@ -61,8 +63,8 @@ def test_unknown_experience_is_not_assumed_zero(experience):
 def test_non_selected_employment_types_are_rejected(job_type):
     job = normalize_record(dict(FIXTURES["indeed"][0], job_type=job_type), "indeed")
     assert job.employment_type == job_type
-    assert evaluate(job, now=NOW).score is None
-    assert "outside selected job types" in evaluate(job, now=NOW).reasons[0]
+    assert evaluate(job, PROFILE, now=NOW).score is None
+    assert "outside selected job types" in evaluate(job, PROFILE, now=NOW).reasons[0]
 
 
 def test_nan_and_malformed_records_do_not_become_fake_jobs():

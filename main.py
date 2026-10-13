@@ -2,6 +2,7 @@
 
 import argparse
 from dataclasses import asdict, dataclass, field
+import json
 import logging
 import os
 from pathlib import Path
@@ -66,7 +67,6 @@ def _summary(summary: RunSummary, source_status: list[str], *, dry_run: bool, re
         with open(summary_path, "a", encoding="utf-8") as output:
             output.write(report)
     if report_path:
-        import json
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report_path.write_text(json.dumps({"version": 1, "dry_run": dry_run, **asdict(summary)}, indent=2) + "\n", encoding="utf-8")
 

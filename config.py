@@ -4,6 +4,14 @@ from os import getenv
 from profiles import Profile
 
 
+def _env_int(name: str, default: int) -> int:
+    value = getenv(name) or str(default)
+    try:
+        return int(value)
+    except ValueError:
+        raise ValueError(f"{name} must be a whole number, not {value!r}") from None
+
+
 PROFILE = Profile()
 PROFILE_IS_EXAMPLE = True  # Set False after replacing the example preferences.
 
@@ -43,17 +51,17 @@ ENABLED_SOURCES = tuple(
 # Wellfound uses a fresh headless browser to read public listing data. Keep it
 # optional while checking reliability across scheduled GitHub Actions runs.
 
-ALERT_THRESHOLD = int(getenv("JOB_WATCHER_ALERT_THRESHOLD", "60"))
-MAX_ALERTS_PER_RUN = int(getenv("JOB_WATCHER_MAX_ALERTS", "10"))
-MAX_POSTING_AGE_DAYS = int(getenv("JOB_WATCHER_MAX_AGE_DAYS", "7"))
+ALERT_THRESHOLD = _env_int("JOB_WATCHER_ALERT_THRESHOLD", 60)
+MAX_ALERTS_PER_RUN = _env_int("JOB_WATCHER_MAX_ALERTS", 10)
+MAX_POSTING_AGE_DAYS = _env_int("JOB_WATCHER_MAX_AGE_DAYS", 7)
 LINKEDIN_RESULTS_PER_SEARCH = 20
-INDEED_RESULTS_PER_SEARCH = int(getenv("JOB_WATCHER_INDEED_RESULTS", "20"))
+INDEED_RESULTS_PER_SEARCH = _env_int("JOB_WATCHER_INDEED_RESULTS", 20)
 # At most 30 detail requests per run with the three default Naukri searches.
-NAUKRI_RESULTS_PER_SEARCH = int(getenv("JOB_WATCHER_NAUKRI_RESULTS", "10"))
+NAUKRI_RESULTS_PER_SEARCH = _env_int("JOB_WATCHER_NAUKRI_RESULTS", 10)
 INTERNSHALA_MAX_CARDS_PER_URL = 50
 WELLFOUND_MAX_CARDS_PER_URL = 50
 # Hard caps keep enrichment and pagination small even with custom settings.
-LINKEDIN_MAX_DETAIL_FETCHES = min(20, max(0, int(getenv("JOB_WATCHER_LINKEDIN_DETAILS", "20"))))
-INTERNSHALA_MAX_DETAIL_FETCHES = min(10, max(0, int(getenv("JOB_WATCHER_INTERNSHALA_DETAILS", "10"))))
-WELLFOUND_PAGES_PER_SEARCH = min(2, max(1, int(getenv("JOB_WATCHER_WELLFOUND_PAGES", "2"))))
+LINKEDIN_MAX_DETAIL_FETCHES = min(20, max(0, _env_int("JOB_WATCHER_LINKEDIN_DETAILS", 20)))
+INTERNSHALA_MAX_DETAIL_FETCHES = min(10, max(0, _env_int("JOB_WATCHER_INTERNSHALA_DETAILS", 10)))
+WELLFOUND_PAGES_PER_SEARCH = min(2, max(1, _env_int("JOB_WATCHER_WELLFOUND_PAGES", 2)))
 HTTP_TIMEOUT = (5, 20)

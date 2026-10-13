@@ -5,6 +5,7 @@ from evaluate import evaluate
 from models import Job
 
 NOW = datetime(2026, 9, 28, tzinfo=timezone.utc)
+PROFILE = Profile()
 
 
 def job(title: str, **changes) -> Job:
@@ -14,24 +15,24 @@ def job(title: str, **changes) -> Job:
 
 
 def test_sparse_backend_intern_exceeds_initial_threshold():
-    assert evaluate(job("Backend Engineer Intern"), now=NOW).score == 70
+    assert evaluate(job("Backend Engineer Intern"), PROFILE, now=NOW).score == 70
 
 
 def test_senior_mention_in_description_does_not_reject_intern():
-    result = evaluate(job("Backend Engineer Intern", description="Work with senior engineers."), now=NOW)
+    result = evaluate(job("Backend Engineer Intern", description="Work with senior engineers."), PROFILE, now=NOW)
     assert result.score == 70
-    assert evaluate(job("Senior Backend Engineer"), now=NOW).score is None
+    assert evaluate(job("Senior Backend Engineer"), PROFILE, now=NOW).score is None
 
 
 def test_required_experience_rejected_but_preferred_is_not():
-    assert evaluate(job("Backend Engineer", description="Minimum 5 years of experience required."), now=NOW).score is None
-    assert evaluate(job("Backend Engineer", description="5 years of experience preferred."), now=NOW).score is not None
+    assert evaluate(job("Backend Engineer", description="Minimum 5 years of experience required."), PROFILE, now=NOW).score is None
+    assert evaluate(job("Backend Engineer", description="5 years of experience preferred."), PROFILE, now=NOW).score is not None
 
 
 def test_go_does_not_match_prose_and_overlapping_career_terms_count_once():
-    result = evaluate(job("Graduate Backend Engineer Intern", description="We go to market soon."), now=NOW)
+    result = evaluate(job("Graduate Backend Engineer Intern", description="We go to market soon."), PROFILE, now=NOW)
     assert result.score == 70
-    tagged = evaluate(job("Graduate Backend Engineer Intern", skills=("Go",)), now=NOW)
+    tagged = evaluate(job("Graduate Backend Engineer Intern", skills=("Go",)), PROFILE, now=NOW)
     assert tagged.score == 75
 
 
@@ -42,12 +43,12 @@ def test_missing_location_is_kept_but_known_mismatch_is_rejected():
 
 
 def test_old_posting_is_rejected():
-    result = evaluate(job("Backend Intern", posted_at=NOW - timedelta(days=9)), now=NOW)
+    result = evaluate(job("Backend Intern", posted_at=NOW - timedelta(days=9)), PROFILE, now=NOW)
     assert result.score is None
 
 
 def test_explicit_mandatory_years_in_title_is_rejected():
-    assert evaluate(job("AI Engineer (3+ years mandatory)"), now=NOW).score is None
+    assert evaluate(job("AI Engineer (3+ years mandatory)"), PROFILE, now=NOW).score is None
 
 
 def test_remote_country_kept_when_only_city_preference_is_known():

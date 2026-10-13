@@ -54,3 +54,13 @@ def test_wellfound_structured_public_listing():
     assert job.company == "Example"
     assert job.employment_type == "fulltime"
     assert job.location == "Pune, India"
+
+
+def test_wellfound_structured_listing_with_invalid_url_is_skipped():
+    html = '''<script type="application/ld+json">[
+      {"@type":"JobPosting", "title":"Broken", "url":"javascript:alert(1)"},
+      {"@type":"JobPosting", "title":"Junior Software Engineer",
+       "url":"https://wellfound.com/jobs/4760728-junior-software-engineer"}
+    ]</script>'''
+    job, = parse_wellfound(html, "https://wellfound.com/role/l/software-engineer/india", now=NOW)
+    assert job.id == "wellfound:4760728"
