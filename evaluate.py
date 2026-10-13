@@ -7,12 +7,23 @@ from config import MAX_POSTING_AGE_DAYS, PROFILE, Profile
 from models import Evaluation, Job
 
 SENIOR_TITLE = re.compile(r"\b(?:senior|sr\.?|staff|principal|lead|manager|director|head of)\b", re.I)
+# Words like "lead" or "manager" in an internship title do not make it senior.
+INTERNSHIP_TITLE = re.compile(r"\b(?:intern|internship|trainee|apprentice(?:ship)?)\b", re.I)
 ENTRY_TITLE = re.compile(r"\b(?:intern|internship|graduate|new grad|fresher|junior|entry.level|associate)\b", re.I)
 EXPERIENCE_REQUIREMENT = re.compile(
     r"\b(\d{1,2})(?:\s*[-–]\s*\d{1,2})?\s*\+?\s*(?:years?|yrs?)\s+(?:of\s+)?(?:\w+[ -]+){0,3}?(?:experience|exp)\b", re.I
 )
 MANDATORY_YEARS = re.compile(r"\b(\d{1,2})\s*\+\s*years?\s+(?:mandatory|required)\b", re.I)
 EXPERIENCE_PREFIX = re.compile(r"\b(?:experience|exp)\s*:\s*(\d{1,2})(?:\s*[-–]\s*\d{1,2})?\s*\+?\s*(?:years?|yrs?)\b", re.I)
+REQUIRED_HEADINGS = {"requirements", "qualifications", "minimum qualifications", "required qualifications"}
+# Headings that end a requirements section. Requirement lists themselves are
+# often short phrases, so only recognizable section names end it.
+OTHER_HEADINGS = {
+    "preferred qualifications", "nice to have", "benefits", "responsibilities", "about us",
+    "key responsibilities", "what you'll do", "what you will do", "the role", "role overview",
+    "job description", "company description", "who we are", "our team", "perks",
+    "what we offer", "compensation", "how to apply",
+}
 TECH_ALIASES = {
     "node.js": (r"\bnode(?:\.js|js)\b",),
     "go": (r"\bgo\b", r"\bgolang\b"),
@@ -45,6 +56,12 @@ def _technology_matches(job: Job, profile: Profile) -> list[str]:
     return found
 
 
+def _about_heading(heading: str) -> bool:
+    # "About the company", "Why join us": short, no numbers.
+    return (heading.startswith(("about ", "why ")) and len(heading.split()) <= 4
+            and not re.search(r"\d", heading))
+
+
 def _mandatory_years(description: str | None) -> int | None:
     if not description:
         return None
@@ -52,10 +69,10 @@ def _mandatory_years(description: str | None) -> int | None:
     required_section = False
     for line in re.split(r"[\n;.!?,]+", description):
         heading = line.strip(" *#:-").casefold()
-        if heading in {"requirements", "qualifications", "minimum qualifications", "required qualifications"}:
+        if heading in REQUIRED_HEADINGS:
             required_section = True
             continue
-        if heading in {"preferred qualifications", "nice to have", "benefits", "responsibilities", "about us"}:
+        if heading in OTHER_HEADINGS or _about_heading(heading):
             required_section = False
             continue
         if re.search(r"\b(?:preferred|nice to have|a plus|bonus)\b", line, re.I):
@@ -81,7 +98,7 @@ def evaluate(job: Job, profile: Profile = PROFILE, *, now: datetime | None = Non
     title = job.title.strip()
     if job.company and job.company.casefold().strip() in {name.casefold().strip() for name in profile.excluded_companies}:
         return Evaluation(None, ("excluded company",))
-    if profile.career_stage == "early" and SENIOR_TITLE.search(title):
+    if profile.career_stage == "early" and SENIOR_TITLE.search(title) and not INTERNSHIP_TITLE.search(title):
         return Evaluation(None, ("senior role title",))
 
     years = job.experience_min_years

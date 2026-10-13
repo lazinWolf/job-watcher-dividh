@@ -55,3 +55,18 @@ def test_remote_country_kept_when_only_city_preference_is_known():
     profile = Profile(allowed_locations=("Pune",))
     result = evaluate(job("Backend Intern", location="Remote only • India", workplace_type="remote"), profile, now=NOW)
     assert result.score is not None
+
+
+def test_requirements_section_ends_at_company_and_role_headings():
+    description = ("Requirements\nPython, SQL\nAbout the company\nWe bring 10 years of experience serving clients.\n"
+                   "What you'll do\n5 years of experience across our platform.")
+    assert evaluate(job("Backend Engineer Intern", description=description), PROFILE, now=NOW).score == 75
+    still_required = "Requirements\nPython\nStrong communication\n3+ years of backend experience"
+    assert evaluate(job("Backend Engineer", description=still_required), PROFILE, now=NOW).reasons == ("requires 3+ years",)
+
+
+def test_internship_titles_with_senior_words_are_scored():
+    assert evaluate(job("Backend Engineer Intern - Lead Gen Platform"), PROFILE, now=NOW).score == 70
+    assert evaluate(job("Product Manager Intern"), PROFILE, now=NOW).score is not None
+    assert evaluate(job("Senior Backend Engineer"), PROFILE, now=NOW).reasons == ("senior role title",)
+    assert evaluate(job("Engineering Manager"), PROFILE, now=NOW).reasons == ("senior role title",)
