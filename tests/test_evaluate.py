@@ -70,3 +70,25 @@ def test_internship_titles_with_senior_words_are_scored():
     assert evaluate(job("Product Manager Intern"), PROFILE, now=NOW).score is not None
     assert evaluate(job("Senior Backend Engineer"), PROFILE, now=NOW).reasons == ("senior role title",)
     assert evaluate(job("Engineering Manager"), PROFILE, now=NOW).reasons == ("senior role title",)
+
+
+def test_development_titles_count_only_with_technical_qualifier():
+    profile = Profile(role_terms=("backend",))
+    assert evaluate(job("Full Stack Development"), profile, now=NOW).reasons[0] == "related engineering role"
+    assert evaluate(job("Python Development"), profile, now=NOW).reasons[0] == "related engineering role"
+    assert "related engineering role" not in evaluate(job("Business Development"), profile, now=NOW).reasons
+
+
+def test_remote_title_passes_location_filter_and_earns_workplace_points():
+    profile = Profile(allowed_locations=("Pune",), preferred_workplaces=("remote",))
+    remote = evaluate(job("Backend Developer Intern (Remote)", location="Kerala, India"), profile, now=NOW)
+    assert remote.score is not None and "preferred remote work" in remote.reasons
+    assert evaluate(job("Backend Developer Intern", location="Kerala, India"), profile, now=NOW).score is None
+    onsite = job("Backend Developer Intern (Remote)", location="Kerala, India", workplace_type="onsite")
+    assert evaluate(onsite, profile, now=NOW).score is None
+
+
+def test_country_only_location_is_kept_for_manual_review():
+    profile = Profile(allowed_locations=("Pune",))
+    assert evaluate(job("Backend Intern", location="India"), profile, now=NOW).score is not None
+    assert evaluate(job("Backend Intern", location="IN"), profile, now=NOW).score is not None

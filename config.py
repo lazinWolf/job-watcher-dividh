@@ -18,29 +18,34 @@ PROFILE_IS_EXAMPLE = True  # Set False after replacing the example preferences.
 # A few broad searches are preferable to a large keyword cross-product.
 LINKEDIN_SEARCHES = (
     "backend engineer intern",
+    "platform engineer intern",
+    "AI engineer intern",
     "software engineer intern",
+    "graduate backend engineer",
     "junior software engineer",
-    "graduate software engineer",
 )
-LINKEDIN_LOCATION = ""  # Fill in once your target region is known.
+LINKEDIN_LOCATION = "India"  # Remote roles abroad are missed; India covers the metros and India-based remote.
 # India is a development search region, not a personal eligibility constraint.
 INDEED_SEARCHES = (
+    "backend developer intern",
     "software engineer intern",
-    "junior software engineer",
+    "AI engineer intern",
+    "junior backend developer",
     "python developer",
 )
 INDEED_COUNTRY = getenv("JOB_WATCHER_INDEED_COUNTRY", "India")
 INDEED_LOCATION = getenv("JOB_WATCHER_INDEED_LOCATION", "")
 NAUKRI_SEARCHES = (
+    "backend developer fresher",
     "software engineer fresher",
-    "python developer",
-    "backend developer",
+    "ai engineer fresher",
 )
 NAUKRI_LOCATION = getenv("JOB_WATCHER_NAUKRI_LOCATION", "")
 INTERNSHALA_URLS = (
     "https://internshala.com/internships/software-development-internship/",
     "https://internshala.com/internships/backend-development-internship/",
     "https://internshala.com/internships/python-internship/",
+    "https://internshala.com/internships/artificial-intelligence-internship/",
 )
 WELLFOUND_URLS = ("https://wellfound.com/role/l/software-engineer/india",)
 
@@ -51,7 +56,7 @@ ENABLED_SOURCES = tuple(
 # Wellfound uses a fresh headless browser to read public listing data. Keep it
 # optional while checking reliability across scheduled GitHub Actions runs.
 
-ALERT_THRESHOLD = _env_int("JOB_WATCHER_ALERT_THRESHOLD", 60)
+ALERT_THRESHOLD = _env_int("JOB_WATCHER_ALERT_THRESHOLD", 55)
 MAX_ALERTS_PER_RUN = _env_int("JOB_WATCHER_MAX_ALERTS", 10)
 MAX_POSTING_AGE_DAYS = _env_int("JOB_WATCHER_MAX_AGE_DAYS", 7)
 LINKEDIN_RESULTS_PER_SEARCH = 20
