@@ -1,6 +1,6 @@
 # Personal Job Watcher
 
-A small Python watcher for public LinkedIn, Internshala, Indeed, and Naukri listings. It filters and scores jobs against one editable profile, then sends the selected jobs to Telegram as one digest per run. An optional Wellfound collector uses headless Chrome to read public search pages and is disabled by default while its reliability is evaluated. Applications stay manual.
+A small Python watcher for public LinkedIn, Internshala, Indeed, Naukri, and Wellfound listings. It filters and scores jobs against one editable profile, then sends the selected jobs to Telegram as one digest per run. The Wellfound collector uses headless Chrome to read public search pages, so it needs Chrome or Chromium installed. Applications stay manual.
 
 ## Set your profile
 
@@ -50,7 +50,7 @@ LinkedIn selectively fetches public descriptions for up to 20 promising new list
 
 | Environment setting | Default | Purpose |
 | --- | --- | --- |
-| `JOB_WATCHER_SOURCES` | `linkedin,internshala,indeed,naukri` | Sources to collect; Wellfound is optional |
+| `JOB_WATCHER_SOURCES` | `linkedin,internshala,indeed,naukri,wellfound` | Sources to collect; leave out `wellfound` where Chrome is unavailable |
 | `JOB_WATCHER_INDEED_COUNTRY` | `India` | Indeed country; use a supported JobSpy country name |
 | `JOB_WATCHER_INDEED_LOCATION` | empty | Optional city/region search filter |
 | `JOB_WATCHER_NAUKRI_LOCATION` | empty | Optional city search filter |
@@ -83,7 +83,7 @@ Create a GitHub repository for this directory and push the code to its default b
 
 The workflow runs the offline test suite before collection. It creates a `state` branch on its first run. Later runs read `seen.json` from that branch and write completed IDs back to it. The workflow grants itself `contents: write`; repository settings must allow its token to write. Runs are serialized with GitHub Actions concurrency. Do not delete or rename `state` casually, because that would make old listings look new.
 
-Run the workflow manually and inspect its Actions summary before relying on the schedule. Public job sites may block GitHub-hosted runners; a local successful request cannot prove remote collection will work. The enabled sources report failures independently. Use the manual workflow's `sources` input to probe `indeed,naukri` or `wellfound` alone. The current GitHub runner image includes Chrome, but the collector will fail with a clear error if it is unavailable. Wellfound remains outside the default `JOB_WATCHER_SOURCES` setting while we check repeated runner results over time.
+Run the workflow manually and inspect its Actions summary before relying on the schedule. Public job sites may block GitHub-hosted runners; a local successful request cannot prove remote collection will work. The enabled sources report failures independently. Use the manual workflow's `sources` input to probe `indeed,naukri` or `wellfound` alone. The current GitHub runner image includes Chrome, but the collector will fail with a clear error if it is unavailable. The default Wellfound page is broad: in one test, 5 of 65 listings suited an early-career profile, so a narrower `wellfound_urls` page may suit a profile better.
 
 The manual workflow's `dry_run` checkbox explicitly suppresses delivery and processed-ID changes, even for a configured real profile. It defaults to false to preserve ordinary manual and scheduled operation; example profiles enforce dry run regardless.
 

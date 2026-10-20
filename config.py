@@ -27,11 +27,10 @@ NAUKRI_LOCATION_OVERRIDE = getenv("JOB_WATCHER_NAUKRI_LOCATION", "")
 ALERT_THRESHOLD_OVERRIDE = _env_override("JOB_WATCHER_ALERT_THRESHOLD")
 
 ENABLED_SOURCES = tuple(
-    name.strip() for name in (getenv("JOB_WATCHER_SOURCES") or "linkedin,internshala,indeed,naukri").split(",")
+    name.strip() for name in (getenv("JOB_WATCHER_SOURCES") or "linkedin,internshala,indeed,naukri,wellfound").split(",")
     if name.strip()
 )
-# Wellfound uses a fresh headless browser to read public listing data. Keep it
-# optional while checking reliability across scheduled GitHub Actions runs.
+# Wellfound uses a fresh headless browser, so it needs Chrome or Chromium on PATH.
 
 MAX_ALERTS_PER_RUN = _env_int("JOB_WATCHER_MAX_ALERTS", 40)  # jobs per digest run
 MAX_POSTING_AGE_DAYS = _env_int("JOB_WATCHER_MAX_AGE_DAYS", 7)

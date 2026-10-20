@@ -6,7 +6,7 @@ on:
       sources:
         description: "Comma-separated sources for a manual probe"
         required: false
-        default: "linkedin,internshala,indeed,naukri"
+        default: "linkedin,internshala,indeed,naukri,wellfound"
       dry_run:
         description: "Preview without sending alerts or changing processed IDs"
         type: boolean
