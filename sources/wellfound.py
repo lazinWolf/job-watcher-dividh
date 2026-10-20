@@ -24,7 +24,9 @@ def get_browser_page(url: str) -> str:
     browser = shutil.which("google-chrome") or shutil.which("chromium") or shutil.which("chromium-browser")
     if not browser:
         raise RuntimeError("Wellfound requires Google Chrome or Chromium on PATH")
-    with tempfile.TemporaryDirectory(prefix="job-watcher-wellfound-") as profile:
+    # Chrome helpers can still be writing to the profile when --dump-dom
+    # returns; a leftover temporary folder must not discard a fetched page.
+    with tempfile.TemporaryDirectory(prefix="job-watcher-wellfound-", ignore_cleanup_errors=True) as profile:
         try:
             result = subprocess.run(
                 [browser, "--headless=new", "--disable-gpu",
