@@ -86,3 +86,20 @@ def test_state_format_is_sorted_and_versioned(tmp_path):
     path = tmp_path / "seen.json"
     save_state(path, State({"b", "a"}))
     assert json.loads(path.read_text()) == {"version": 1, "processed": ["a", "b"]}
+
+
+def test_sparse_near_threshold_listing_waits_for_details(tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "PROFILE_IS_EXAMPLE", False)
+    path = tmp_path / "seen.json"
+    sparse = _job(1, "Java Developer")  # related role only: 15 + 20 skill points cannot reach 60
+    near = _job(2, "Backend Engineer")  # preferred role, no career evidence: 45, could reach 65
+    described = Job(id="test:3", source="test", title="Backend Engineer", url="https://example.com/jobs/3",
+                    description="Office administration.")
+    status, summary = main.run(path, init_state=True, sender=lambda _: None,
+                               fetchers={"test": lambda: [sparse, near, described]})
+    assert summary.awaiting_details == 1 and summary.below_threshold == 2
+    assert load_state(path).processed == {"test:1", "test:3"}  # test:2 stays open for enrichment
+    enriched = Job(id="test:2", source="test", title="Backend Engineer", url="https://example.com/jobs/2",
+                   description="Python, Docker, Linux, PostgreSQL services.")
+    _, summary = main.run(path, sender=lambda _: None, fetchers={"test": lambda: [enriched]})
+    assert summary.delivered == 1 and "test:2" in load_state(path).processed

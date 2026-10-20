@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from config import Profile
 from evaluate import evaluate
 from models import Job
@@ -94,3 +96,33 @@ def test_country_only_location_is_kept_for_manual_review():
     assert evaluate(job("Backend Intern", location="IN"), profile, now=NOW).score is not None
     assert evaluate(job("Backend Intern", location="Delhi, India"), profile, now=NOW).score is None
     assert evaluate(job("Backend Intern", location="India"), Profile(allowed_locations=("Pune",)), now=NOW).score is None
+
+
+@pytest.mark.parametrize("description", [
+    "Selected candidates must pay a registration fee of Rs 2000.",
+    "A refundable deposit is collected before onboarding.",
+    "Training fees: INR 4999 (one-time).",
+])
+def test_payment_requests_are_rejected(description):
+    assert evaluate(job("Backend Engineer Intern", description=description), PROFILE, now=NOW).reasons == ("asks for payment",)
+
+
+@pytest.mark.parametrize("description", [
+    "There is no registration fee for this internship.",
+    "Registration fee: nil. Stipend paid monthly.",
+    "We will never ask you to pay a fee.",
+    "Free training is provided; the stipend is INR 10,000.",
+])
+def test_payment_free_postings_are_kept(description):
+    assert evaluate(job("Backend Engineer Intern", description=description), PROFILE, now=NOW).score is not None
+
+
+def test_linkedin_seniority_supplies_career_evidence():
+    entry = evaluate(job("Backend Engineer", seniority="Entry level"), PROFILE, now=NOW)
+    assert "early-career role" in entry.reasons and entry.score == 70
+    assert evaluate(job("Backend Engineer", seniority="Mid-Senior level"), PROFILE, now=NOW).reasons == (
+        "senior role (LinkedIn seniority)",)
+    # An explicitly junior title outranks a recruiter's level label.
+    assert evaluate(job("Junior Backend Engineer", seniority="Mid-Senior level"), PROFILE, now=NOW).score is not None
+    experienced = Profile(career_stage="experienced", experience_years=5, max_required_years=6)
+    assert evaluate(job("Backend Engineer", seniority="Mid-Senior level"), experienced, now=NOW).score is not None

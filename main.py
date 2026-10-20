@@ -18,7 +18,7 @@ from config import (
     MAX_ALERTS_PER_RUN, PROFILE, PROFILE_IS_EXAMPLE,
 )
 from profiles import parse_profile
-from evaluate import evaluate
+from evaluate import SKILL_POINTS, evaluate
 from models import Evaluation, Job, merge_jobs
 from sources.internshala import fetch_internshala
 from sources.indeed import fetch_indeed
@@ -47,6 +47,7 @@ class RunSummary:
     new: int = 0
     rejected: int = 0
     below_threshold: int = 0
+    awaiting_details: int = 0
     selected: int = 0
     delivered: int = 0
     deferred: int = 0
@@ -62,7 +63,8 @@ def _decision(job: Job, result: Evaluation | None = None, *, outcome: str) -> di
     # Enough to review a decision later; descriptions stay out of reports.
     return {"id": job.id, "source": job.source, "title": job.title, "company": job.company,
             "location": job.location, "url": job.url, "score": result.score if result else None,
-            "outcome": outcome, "reasons": list(result.reasons) if result else []}
+            "outcome": outcome, "reasons": list(result.reasons) if result else [],
+            "has_description": bool(job.description)}
 
 
 def _summary(summary: RunSummary, source_status: list[str], *, dry_run: bool,
@@ -72,7 +74,7 @@ def _summary(summary: RunSummary, source_status: list[str], *, dry_run: bool,
         f"## Job watcher ({mode})",
         *[f"- {item}" for item in source_status],
         f"- Collected: {summary.collected}; new: {summary.new}",
-        f"- Rejected: {summary.rejected}; below threshold: {summary.below_threshold}",
+        f"- Rejected: {summary.rejected}; below threshold: {summary.below_threshold}; awaiting details: {summary.awaiting_details}",
         f"- Selected: {summary.selected}; delivered: {summary.delivered}; deferred: {summary.deferred}",
         f"- Evaluation failures: {summary.evaluation_failed}; delivery failures: {summary.delivery_failed}",
     ]
@@ -207,6 +209,10 @@ def run(
             LOGGER.info("Rejected %s: %s", job.id, "; ".join(result.reasons))
             if not dry_run:
                 state.processed.add(job.id)
+        elif result.score < threshold and not job.description and result.score + SKILL_POINTS >= threshold:
+            # Skills may be in the description a later run fetches; stay unprocessed.
+            summary.awaiting_details += 1
+            summary.decisions.append(_decision(job, result, outcome="awaiting_details"))
         elif result.score < threshold:
             summary.below_threshold += 1
             summary.decisions.append(_decision(job, result, outcome="below_threshold"))

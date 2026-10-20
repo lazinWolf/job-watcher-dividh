@@ -20,15 +20,21 @@ def parse_detail(html: str, job: Job) -> Job:
     description = soup.select_one(".show-more-less-html__markup")
     if description is None:
         raise ValueError("LinkedIn public description was unavailable")
-    employment = None
+    employment = seniority = None
     for criterion in soup.select(".description__job-criteria-item"):
         heading = criterion.select_one(".description__job-criteria-subheader")
         value = criterion.select_one(".description__job-criteria-text")
-        if heading and value and heading.get_text(strip=True).casefold() == "employment type":
+        if not heading or not value:
+            continue
+        label = heading.get_text(strip=True).casefold()
+        if label == "employment type":
             normalized = normalize_record({"title": job.title, "job_url": job.url, "job_type": value.get_text(strip=True)})
             employment = normalized.employment_type if normalized else None
+        elif label == "seniority level":
+            seniority = value.get_text(" ", strip=True) or None
     return replace(job, description=detail_text(description),
-                   employment_type=job.employment_type or employment)
+                   employment_type=job.employment_type or employment,
+                   seniority=job.seniority or seniority)
 
 
 def fetch_linkedin(*, profile: Profile = PROFILE, processed_ids: set[str] | None = None) -> list[Job]:

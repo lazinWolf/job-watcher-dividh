@@ -227,12 +227,13 @@ def test_profile_carries_searches_threshold_and_validates_urls():
 def test_profile_threshold_and_searches_reach_the_run(tmp_path, monkeypatch):
     path = tmp_path / "profile.json"
     path.write_text(document(alert_threshold=75))
+    described = job(description="Build internal tools.")  # scores 70
     _, summary = main.run(tmp_path / "seen.json", dry_run=True, profile_path=path,
-                          fetchers={"test": lambda: [job()]})  # scores 70
+                          fetchers={"test": lambda: [described]})
     assert summary.below_threshold == 1
     monkeypatch.setattr(main, "ALERT_THRESHOLD_OVERRIDE", 65)
     _, summary = main.run(tmp_path / "seen.json", dry_run=True, profile_path=path,
-                          fetchers={"test": lambda: [job()]})
+                          fetchers={"test": lambda: [described]})
     assert summary.selected == 1
     calls = []
     import jobspy, pandas as pd

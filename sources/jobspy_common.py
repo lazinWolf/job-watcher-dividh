@@ -118,6 +118,7 @@ def normalize_record(record: dict, source: str) -> Job | None:
         employment_type=_employment_type(record.get("job_type")), workplace_type=workplace,
         experience_min_years=_experience(record.get("experience_range")),
         skills=tuple(dict.fromkeys(skills)),
+        seniority=_value(record.get("job_level")),
     )
 
 
