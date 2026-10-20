@@ -33,7 +33,7 @@ ENABLED_SOURCES = tuple(
 # Wellfound uses a fresh headless browser to read public listing data. Keep it
 # optional while checking reliability across scheduled GitHub Actions runs.
 
-MAX_ALERTS_PER_RUN = _env_int("JOB_WATCHER_MAX_ALERTS", 10)
+MAX_ALERTS_PER_RUN = _env_int("JOB_WATCHER_MAX_ALERTS", 40)  # jobs per digest run
 MAX_POSTING_AGE_DAYS = _env_int("JOB_WATCHER_MAX_AGE_DAYS", 7)
 LINKEDIN_RESULTS_PER_SEARCH = 20
 INDEED_RESULTS_PER_SEARCH = _env_int("JOB_WATCHER_INDEED_RESULTS", 20)

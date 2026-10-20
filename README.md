@@ -1,6 +1,6 @@
 # Personal Job Watcher
 
-A small Python watcher for public LinkedIn, Internshala, Indeed, and Naukri listings. It filters and scores jobs against one editable profile, then sends selected jobs to Telegram. An optional Wellfound collector uses headless Chrome to read public search pages and is disabled by default while its reliability is evaluated. Applications stay manual.
+A small Python watcher for public LinkedIn, Internshala, Indeed, and Naukri listings. It filters and scores jobs against one editable profile, then sends the selected jobs to Telegram as one digest per run. An optional Wellfound collector uses headless Chrome to read public search pages and is disabled by default while its reliability is evaluated. Applications stay manual.
 
 ## Set your profile
 
@@ -91,9 +91,9 @@ Scheduled GitHub Actions may run late or be dropped. The searches overlap previo
 
 ## Tuning and limits
 
-The default `alert_threshold` is 60; `JOB_WATCHER_ALERT_THRESHOLD` overrides it when set. Role and early-career fit can supply 70 points, so a good listing with no technology detail can qualify. Skills, work arrangement, and freshness provide additional points. A maximum of 10 selected jobs are considered per run. Change these values in the profile, `config.py`, or the documented `JOB_WATCHER_*` environment variables.
+The default `alert_threshold` is 60; `JOB_WATCHER_ALERT_THRESHOLD` overrides it when set. Role and early-career fit can supply 70 points, so a good listing with no technology detail can qualify. Skills, work arrangement, and freshness provide additional points. Each run sends one digest listing up to 40 selected jobs (`JOB_WATCHER_MAX_ALERTS`), best first: a score and linked title per job, under its company, with location, source, and pay when known. Several roles from the same company share one heading. A long digest is split into a few messages within Telegram's length limit, and a run with no matches sends nothing. Jobs over the limit stay unprocessed and are noted at the end of the digest. Dry runs print the digest instead of sending it. Change these values in the profile, `config.py`, or the documented `JOB_WATCHER_*` environment variables.
 
-The state records rejected, below-threshold, and successfully delivered listings. Failed delivery leaves a listing unprocessed, so it can be retried if the source returns it again. A crash between sending and saving state can produce a duplicate alert. A listing that disappears before retry can be missed. Those limits keep the project small; add durable pending alerts only if they cause a real problem.
+The state records rejected, below-threshold, and successfully delivered listings. If a digest message fails, its listings and those in later messages stay unprocessed, so they can be retried if the source returns them again. A crash between sending and saving state can produce a duplicate alert. A listing that disappears before retry can be missed. Those limits keep the project small; add durable pending alerts only if they cause a real problem.
 
 Changing scoring rules does not revisit old processed jobs. Use saved fixtures and dry runs to tune the evaluator. Set `JOB_WATCHER_STATE_PATH` to use a different state file locally.
 

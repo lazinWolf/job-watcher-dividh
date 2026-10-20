@@ -11,23 +11,35 @@ def _job(number: int, title: str = "Backend Engineer Intern") -> Job:
 
 def test_delivery_failure_preserves_completed_ids_and_retries_later(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "PROFILE_IS_EXAMPLE", False)
+    monkeypatch.setattr("telegram.MESSAGE_LIMIT", 300)  # each unknown-company job in its own message
     path = tmp_path / "seen.json"
     sent = []
 
-    def send_once(job, evaluation):
-        if job.id == "test:2":
+    def send_once(text):
+        if "jobs/2" in text:
             raise RuntimeError("delivery unavailable")
-        sent.append(job.id)
+        sent.append(text)
 
-    fetchers = {"test": lambda: [_job(1), _job(2), _job(1)]}
+    fetchers = {"test": lambda: [_job(1), _job(2), _job(3), _job(1)]}
     status, summary = main.run(path, init_state=True, fetchers=fetchers, sender=send_once)
-    assert status == 1 and summary.delivered == 1
+    assert status == 1 and summary.delivered == 1 and summary.delivery_failed == 1 and summary.deferred == 2
     assert load_state(path).processed == {"test:1"}
 
-    status, summary = main.run(path, fetchers=fetchers, sender=lambda job, _: sent.append(job.id))
-    assert status == 0 and summary.delivered == 1
-    assert sent == ["test:1", "test:2"]
-    assert load_state(path).processed == {"test:1", "test:2"}
+    status, summary = main.run(path, fetchers=fetchers, sender=sent.append)
+    assert status == 0 and summary.delivered == 2
+    assert ["jobs/1" in text for text in sent] == [True, False, False]
+    assert load_state(path).processed == {"test:1", "test:2", "test:3"}
+
+
+def test_matches_arrive_as_one_digest(tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "PROFILE_IS_EXAMPLE", False)
+    sent = []
+    status, summary = main.run(tmp_path / "seen.json", init_state=True, sender=sent.append,
+                               fetchers={"test": lambda: [_job(1), _job(2), _job(3, "Office Assistant")]})
+    assert status == 0 and summary.delivered == 2 and len(sent) == 1
+    assert "2 new matches" in sent[0] and "jobs/1" in sent[0] and "jobs/2" in sent[0]
+    _, summary = main.run(tmp_path / "seen.json", sender=sent.append, fetchers={"test": lambda: [_job(1)]})
+    assert summary.new == 0 and len(sent) == 1  # nothing new, nothing sent
 
 
 def test_rejected_and_below_threshold_are_not_reprocessed(tmp_path, monkeypatch):

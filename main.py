@@ -26,7 +26,7 @@ from sources.linkedin import fetch_linkedin
 from sources.naukri import fetch_naukri
 from sources.wellfound import fetch_wellfound
 from state import State, load_state, save_state
-from telegram import send_telegram, send_text
+from telegram import format_digest, send_text, to_plain
 from telemetry import append_history, health_changes, history_record
 
 LOGGER = logging.getLogger("job_watcher")
@@ -58,7 +58,7 @@ class RunSummary:
     health: list[str] = field(default_factory=list)
 
 
-def _decision(job: Job, outcome: str, result: Evaluation | None = None) -> dict:
+def _decision(job: Job, result: Evaluation | None = None, *, outcome: str) -> dict:
     # Enough to review a decision later; descriptions stay out of reports.
     return {"id": job.id, "source": job.source, "title": job.title, "company": job.company,
             "location": job.location, "url": job.url, "score": result.score if result else None,
@@ -111,7 +111,7 @@ def _record_health(summary: RunSummary, history_path: Path, meta: dict,
 def run(
     state_path: Path, *, dry_run: bool = False, init_state: bool = False,
     fetchers: dict[str, Callable[[], list[Job]]] | None = None,
-    sender: Callable[[Job, Evaluation], None] = send_telegram,
+    sender: Callable[[str], None] = lambda text: send_text(text, markup=True),
     profile_path: Path | None = None, report_path: Path | None = None,
     history_path: Path | None = None, notifier: Callable[[str], None] = send_text,
 ) -> tuple[int, RunSummary]:
@@ -197,19 +197,19 @@ def run(
             result = evaluate(job, profile)
         except Exception:
             summary.evaluation_failed += 1
-            summary.decisions.append(_decision(job, "evaluation_failed"))
+            summary.decisions.append(_decision(job, outcome="evaluation_failed"))
             LOGGER.exception("Evaluation failed for %s", job.id)
             continue
         if result.score is None:
             summary.rejected += 1
-            summary.decisions.append(_decision(job, "rejected", result))
+            summary.decisions.append(_decision(job, result, outcome="rejected"))
             reasons.update(re.sub(r"\d+", "N", reason) for reason in result.reasons[:1])
             LOGGER.info("Rejected %s: %s", job.id, "; ".join(result.reasons))
             if not dry_run:
                 state.processed.add(job.id)
         elif result.score < threshold:
             summary.below_threshold += 1
-            summary.decisions.append(_decision(job, "below_threshold", result))
+            summary.decisions.append(_decision(job, result, outcome="below_threshold"))
             LOGGER.info("Below threshold %s: %s", job.id, result.score)
             if not dry_run:
                 state.processed.add(job.id)
@@ -223,27 +223,31 @@ def run(
         pair[0].id,
     ))
     summary.selected = len(selected)
-    summary.deferred = max(0, len(selected) - MAX_ALERTS_PER_RUN)
+    batch = selected[:MAX_ALERTS_PER_RUN]
+    summary.deferred = len(selected) - len(batch)
+    results = {job.id: (job, result) for job, result in batch}
     decided: set[str] = set()
-    for job, result in selected[:MAX_ALERTS_PER_RUN]:
-        decided.add(job.id)
+    for text, ids in format_digest(batch, more=summary.deferred) if batch else []:
         if dry_run:
-            summary.decisions.append(_decision(job, "would_send", result))
-            print(f"DRY RUN {result.score} {job.title} | {job.company or 'Unknown'} | {job.url}")
-            print("  " + "; ".join(result.reasons))
+            print("DRY RUN digest message:\n" + to_plain(text) + "\n")
+            summary.decisions.extend(_decision(*results[job_id], outcome="would_send") for job_id in ids)
+            decided.update(ids)
             continue
         try:
-            sender(job, result)
+            sender(text)
         except Exception as exc:
-            summary.delivery_failed += 1
-            summary.decisions.append(_decision(job, "delivery_failed", result))
-            LOGGER.error("Delivery stopped at %s: %s: %s", job.id, type(exc).__name__, exc)
-            # Later selected jobs remain unseen and can be retried if re-collected.
+            summary.delivery_failed += len(ids)
+            summary.decisions.extend(_decision(*results[job_id], outcome="delivery_failed") for job_id in ids)
+            decided.update(ids)
+            LOGGER.error("Digest delivery stopped: %s: %s", type(exc).__name__, exc)
+            # Jobs in this and later messages remain unseen and can be retried if re-collected.
             break
-        state.processed.add(job.id)
-        summary.delivered += 1
-        summary.decisions.append(_decision(job, "sent", result))
-    summary.decisions.extend(_decision(job, "deferred", result) for job, result in selected if job.id not in decided)
+        for job_id in ids:
+            state.processed.add(job_id)
+            summary.decisions.append(_decision(*results[job_id], outcome="sent"))
+        summary.delivered += len(ids)
+        decided.update(ids)
+    summary.decisions.extend(_decision(job, result, outcome="deferred") for job, result in selected if job.id not in decided)
 
     if not dry_run:
         summary.deferred = len(selected) - summary.delivered
