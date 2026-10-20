@@ -24,7 +24,7 @@ Search settings are `linkedin_searches`, `linkedin_location`, `indeed_searches`,
 
 ## Local use
 
-Python 3.12 is used locally and in GitHub Actions. JobSpy is pinned to 1.2.0, which includes the updated Naukri adapter and uses `curl_cffi`. With `uv`:
+Python 3.12 is used locally and in GitHub Actions. JobSpy is pinned to 1.2.0, which includes the updated Naukri adapter and uses `curl_cffi`. Version 1.3.0 sorts age-limited Naukri searches by freshness; in a side-by-side test about a third fewer Naukri results were role-relevant (14 of 29 against 21 of 30), so the pin stays until that can be turned off. With `uv`:
 
 ```sh
 uv venv --python 3.12 .venv

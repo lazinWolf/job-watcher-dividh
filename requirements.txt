@@ -1,4 +1,6 @@
 beautifulsoup4==4.14.3
 requests==2.32.5
+# 1.3.0 sorts age-limited Naukri searches by freshness; in testing a third fewer
+# results were role-relevant, so stay on 1.2.0 until that is configurable.
 python-jobspy==1.2.0
 pytest==9.1.1
