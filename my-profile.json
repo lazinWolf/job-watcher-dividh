@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "is_example": false,
+  "profile": {
+    "role_terms": [
+      "backend",
+      "platform engineer",
+      "infrastructure engineer",
+      "applied ai",
+      "agentic",
+      "ai engineer",
+      "sre",
+      "site reliability",
+      "observability",
+      "ai developer",
+      "ai agent",
+      "llm",
+      "python developer",
+      "python development",
+      "python engineer",
+      "generative ai engineer",
+      "gen ai engineer",
+      "software engineer",
+      "software developer"
+    ],
+    "skills": [
+      "python",
+      "node.js",
+      "fastapi",
+      "postgresql",
+      "opentelemetry",
+      "prometheus",
+      "jaeger"
+    ],
+    "job_types": [
+      "internship",
+      "fulltime"
+    ],
+    "career_stage": "early",
+    "experience_years": 0,
+    "max_required_years": 1,
+    "allowed_locations": [
+      "remote",
+      "work from home",
+      "bangalore",
+      "bengaluru",
+      "hyderabad",
+      "pune",
+      "mumbai",
+      "gurugram",
+      "gurgaon",
+      "delhi",
+      "noida",
+      "ghaziabad",
+      "faridabad",
+      "ncr",
+      "ka, in",
+      "ts, in",
+      "mh, in",
+      "hr, in",
+      "dl, in",
+      "up, in",
+      "thane",
+      "kalyan"
+    ],
+    "preferred_workplaces": [
+      "remote"
+    ],
+    "excluded_companies": [],
+    "accept_unpaid_internships": false,
+    "alert_threshold": 55,
+    "country_locations": [
+      "India",
+      "IN"
+    ],
+    "linkedin_searches": [
+      "backend engineer intern",
+      "platform engineer intern",
+      "AI engineer intern",
+      "software engineer intern",
+      "graduate backend engineer",
+      "junior software engineer"
+    ],
+    "linkedin_location": "India",
+    "indeed_searches": [
+      "backend developer intern",
+      "software engineer intern",
+      "AI engineer intern",
+      "junior backend developer",
+      "python developer"
+    ],
+    "indeed_country": "India",
+    "naukri_searches": [
+      "backend developer fresher",
+      "software engineer fresher",
+      "ai engineer fresher"
+    ],
+    "internshala_urls": [
+      "https://internshala.com/internships/software-development-internship/",
+      "https://internshala.com/internships/backend-development-internship/",
+      "https://internshala.com/internships/python-internship/",
+      "https://internshala.com/internships/artificial-intelligence-internship/"
+    ],
+    "wellfound_urls": [
+      "https://wellfound.com/role/l/software-engineer/india"
+    ]
+  }
+}
