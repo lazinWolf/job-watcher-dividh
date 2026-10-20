@@ -135,7 +135,7 @@ def test_adapters_use_current_api_and_preserve_linkedin_ids(monkeypatch):
     naukri.fetch_naukri()
     assert all("linkedin_fetch_description" not in call for call in calls)
     assert all(call["fetch_description"] for call in calls if call["site_name"] == ["naukri"])
-    assert all(call["country_indeed"] == indeed.INDEED_COUNTRY for call in calls if call["site_name"] == ["indeed"])
+    assert all(call["country_indeed"] == "India" for call in calls if call["site_name"] == ["indeed"])
     record = {"id": "li-42", "title": "Backend Intern", "job_url": "https://www.linkedin.com/jobs/view/42?trk=abc"}
     assert linkedin.normalize_record(record).id == "linkedin:42"
 

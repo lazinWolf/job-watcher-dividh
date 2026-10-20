@@ -17,7 +17,7 @@ def committed_defaults(monkeypatch):
     # Tests assert scores for the example profile, whatever config.py holds.
     monkeypatch.setattr(main, "PROFILE", Profile())
     monkeypatch.setattr(main, "PROFILE_IS_EXAMPLE", True)
-    monkeypatch.setattr(main, "ALERT_THRESHOLD", 60)
+    monkeypatch.setattr(main, "ALERT_THRESHOLD_OVERRIDE", None)
     monkeypatch.setattr(main, "MAX_ALERTS_PER_RUN", 10)
     monkeypatch.setattr(main, "HEALTH_ALERT_RUNS", 3)
     monkeypatch.setattr(main, "HISTORY_KEEP_RUNS", 500)

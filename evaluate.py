@@ -9,6 +9,19 @@ from models import Evaluation, Job
 SENIOR_TITLE = re.compile(r"\b(?:senior|sr\.?|staff|principal|lead|manager|director|head of)\b", re.I)
 # Words like "lead" or "manager" in an internship title do not make it senior.
 INTERNSHIP_TITLE = re.compile(r"\b(?:intern|internship|trainee|apprentice(?:ship)?)\b", re.I)
+SKILL_POINTS = 20  # maximum points from matched skills
+# LinkedIn "Seniority level" labels.
+ENTRY_LEVELS = {"internship", "entry level"}
+SENIOR_LEVELS = {"mid-senior level", "director", "executive"}
+# Requests for money are the clearest sign of a fake internship or job. A
+# nearby "no", "free", or "not" means the posting is saying the opposite.
+PAYMENT_REQUEST = re.compile(
+    r"\b(?:registration|training|joining|security|enrol?l?ment|application|onboarding|placement)\s+"
+    r"(?:fees?|charges?|deposit|amount)\b|\bpay\s+(?:an?\s+|the\s+)?(?:fees?|deposit)\b|\brefundable\s+(?:deposit|fees?)\b",
+    re.I,
+)
+PAYMENT_NEGATION_BEFORE = re.compile(r"\b(?:no|not|zero|free|without|never|don't|do not)\b[^.\n]{0,25}$", re.I)
+PAYMENT_NEGATION_AFTER = re.compile(r"^[^.\n]{0,30}\b(?:nil|not|waived|free|none)\b", re.I)
 ENTRY_TITLE = re.compile(r"\b(?:intern|internship|graduate|new grad|fresher|junior|entry.level|associate)\b", re.I)
 EXPERIENCE_REQUIREMENT = re.compile(
     r"\b(\d{1,2})(?:\s*[-–]\s*\d{1,2})?\s*\+?\s*(?:years?|yrs?)\s+(?:of\s+)?(?:\w+[ -]+){0,3}?(?:experience|exp)\b", re.I
@@ -21,8 +34,6 @@ ENGINEERING_TITLE = re.compile(
     r"\b(?:software|developer|engineering)\b|\b(?:full[ -]?stack|python|java(?:script)?)\s+development\b", re.I
 )
 REMOTE_TITLE = re.compile(r"\bremote\b|\bwork from home\b|\bwfh\b", re.I)
-# A bare country says nothing about the city, so it cannot rule a listing out.
-COUNTRY_ONLY_LOCATIONS = {"india", "in"}
 REQUIRED_HEADINGS = {"requirements", "qualifications", "minimum qualifications", "required qualifications"}
 # Headings that end a requirements section. Requirement lists themselves are
 # often short phrases, so only recognizable section names end it.
@@ -94,6 +105,15 @@ def _mandatory_years(description: str | None) -> int | None:
     return max(years) if years else None
 
 
+def _asks_for_payment(description: str | None) -> bool:
+    for match in PAYMENT_REQUEST.finditer(description or ""):
+        before = description[max(0, match.start() - 40):match.start()]
+        after = description[match.end():match.end() + 40]
+        if not PAYMENT_NEGATION_BEFORE.search(before) and not PAYMENT_NEGATION_AFTER.search(after):
+            return True
+    return False
+
+
 def _workplace(job: Job) -> str | None:
     # LinkedIn rarely sets a work arrangement, but titles often say "(Remote)".
     return job.workplace_type or ("remote" if REMOTE_TITLE.search(job.title) else None)
@@ -111,8 +131,13 @@ def evaluate(job: Job, profile: Profile = PROFILE, *, now: datetime | None = Non
     title = job.title.strip()
     if job.company and job.company.casefold().strip() in {name.casefold().strip() for name in profile.excluded_companies}:
         return Evaluation(None, ("excluded company",))
+    if _asks_for_payment(job.description):
+        return Evaluation(None, ("asks for payment",))
     if profile.career_stage == "early" and SENIOR_TITLE.search(title) and not INTERNSHIP_TITLE.search(title):
         return Evaluation(None, ("senior role title",))
+    seniority = (job.seniority or "").casefold()
+    if profile.career_stage == "early" and seniority in SENIOR_LEVELS and not ENTRY_TITLE.search(title):
+        return Evaluation(None, ("senior role (LinkedIn seniority)",))
 
     years = job.experience_min_years
     described_years = _mandatory_years(title + "\n" + (job.description or ""))
@@ -127,7 +152,9 @@ def evaluate(job: Job, profile: Profile = PROFILE, *, now: datetime | None = Non
             and job.compensation and re.search(r"\b(?:unpaid|no stipend)\b", job.compensation, re.I)):
         return Evaluation(None, ("unpaid internship",))
 
-    if profile.allowed_locations and job.location and job.location.strip().casefold() not in COUNTRY_ONLY_LOCATIONS:
+    country_only = job.location and job.location.strip().casefold() in {
+        place.casefold() for place in profile.country_locations}
+    if profile.allowed_locations and job.location and not country_only:
         location = job.location.casefold()
         # "Remote" alone does not say where a person is eligible to work.
         if not any(place.casefold() in location for place in profile.allowed_locations):
@@ -148,7 +175,7 @@ def evaluate(job: Job, profile: Profile = PROFILE, *, now: datetime | None = Non
         score += 15
         reasons.append("related engineering role")
 
-    early = job.employment_type == "internship" or ENTRY_TITLE.search(title)
+    early = job.employment_type == "internship" or ENTRY_TITLE.search(title) or seniority in ENTRY_LEVELS
     if early and profile.career_stage in {"early", "any"}:
         score += 25
         reasons.append("early-career role")
@@ -167,7 +194,7 @@ def evaluate(job: Job, profile: Profile = PROFILE, *, now: datetime | None = Non
 
     skills = _technology_matches(job, profile)
     if skills:
-        score += min(20, len(skills) * 5)
+        score += min(SKILL_POINTS, len(skills) * 5)
         reasons.append("skills: " + ", ".join(skills[:4]))
 
     workplace = _workplace(job)

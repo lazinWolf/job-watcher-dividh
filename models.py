@@ -22,6 +22,7 @@ class Job:
     workplace_type: str | None = None  # remote, hybrid, onsite, or unknown
     experience_min_years: int | None = None
     skills: tuple[str, ...] = ()
+    seniority: str | None = None  # source label such as LinkedIn's "Entry level"
 
 
 @dataclass(frozen=True)

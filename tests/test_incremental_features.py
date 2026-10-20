@@ -147,12 +147,12 @@ def test_inline_html_does_not_hide_experience_and_block_headings_stay_separate()
 
 def test_wellfound_two_pages_preserve_queries_and_merge_overlap(monkeypatch):
     seen = []
-    monkeypatch.setattr(wellfound, "WELLFOUND_URLS", ("https://wellfound.com/role/l/software-engineer/india?remote=true",))
     monkeypatch.setattr(wellfound, "WELLFOUND_PAGES_PER_SEARCH", 2)
     monkeypatch.setattr(wellfound, "get_browser_page", lambda url: seen.append(url) or url)
     first, second = job(1, source="wellfound"), job(2, source="wellfound")
     monkeypatch.setattr(wellfound, "parse_cards", lambda html, url: [first] if "page=1" in url else [replace(first, description="More detail"), second])
-    jobs = wellfound.fetch_wellfound()
+    profile = Profile(wellfound_urls=("https://wellfound.com/role/l/software-engineer/india?remote=true",))
+    jobs = wellfound.fetch_wellfound(profile=profile)
     assert len(jobs) == 2 and jobs[0].description == "More detail"
     assert len(seen) == 2 and all("remote=true" in url for url in seen)
 
@@ -212,3 +212,32 @@ def test_numeric_settings_name_the_bad_variable(monkeypatch):
     monkeypatch.setenv("JOB_WATCHER_MAX_ALERTS", "ten")
     with pytest.raises(ValueError, match="JOB_WATCHER_MAX_ALERTS"):
         config._env_int("JOB_WATCHER_MAX_ALERTS", 10)
+
+
+def test_profile_carries_searches_threshold_and_validates_urls():
+    profile, _ = parse_profile(document(linkedin_searches=["ai engineer intern"], linkedin_location="India",
+                                        alert_threshold=55, internshala_urls=["https://internshala.com/x/"]))
+    assert profile.linkedin_searches == ("ai engineer intern",) and profile.alert_threshold == 55
+    assert profile.indeed_country == "India"  # omitted fields keep the defaults
+    for bad in ({"alert_threshold": 101}, {"wellfound_urls": ["http://wellfound.com/x"]}, {"linkedin_location": 3}):
+        with pytest.raises(ValueError):
+            parse_profile(document(**bad))
+
+
+def test_profile_threshold_and_searches_reach_the_run(tmp_path, monkeypatch):
+    path = tmp_path / "profile.json"
+    path.write_text(document(alert_threshold=75))
+    described = job(description="Build internal tools.")  # scores 70
+    _, summary = main.run(tmp_path / "seen.json", dry_run=True, profile_path=path,
+                          fetchers={"test": lambda: [described]})
+    assert summary.below_threshold == 1
+    monkeypatch.setattr(main, "ALERT_THRESHOLD_OVERRIDE", 65)
+    _, summary = main.run(tmp_path / "seen.json", dry_run=True, profile_path=path,
+                          fetchers={"test": lambda: [described]})
+    assert summary.selected == 1
+    calls = []
+    import jobspy, pandas as pd
+    monkeypatch.setattr(jobspy, "scrape_jobs", lambda **options: calls.append(options) or pd.DataFrame())
+    from sources import indeed
+    indeed.fetch_indeed(profile=Profile(indeed_searches=("go developer",), indeed_country="Germany"))
+    assert calls[0]["search_term"] == "go developer" and calls[0]["country_indeed"] == "Germany"

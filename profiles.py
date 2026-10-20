@@ -22,6 +22,28 @@ class Profile:
     career_stage: str = "early"  # early, experienced, any
     experience_years: int = 0
     excluded_companies: tuple[str, ...] = ()
+    # Whole locations that name only a country or region, such as "India".
+    # They say nothing about the city, so allowed_locations cannot rule them out.
+    country_locations: tuple[str, ...] = ()
+    alert_threshold: int = 60
+    # Searches. A few broad searches are preferable to a keyword cross-product;
+    # search regions are independent of personal eligibility rules.
+    linkedin_searches: tuple[str, ...] = (
+        "backend engineer intern", "software engineer intern",
+        "junior software engineer", "graduate software engineer",
+    )
+    linkedin_location: str = ""
+    indeed_searches: tuple[str, ...] = ("software engineer intern", "junior software engineer", "python developer")
+    indeed_country: str = "India"
+    indeed_location: str = ""
+    naukri_searches: tuple[str, ...] = ("software engineer fresher", "python developer", "backend developer")
+    naukri_location: str = ""
+    internshala_urls: tuple[str, ...] = (
+        "https://internshala.com/internships/software-development-internship/",
+        "https://internshala.com/internships/backend-development-internship/",
+        "https://internshala.com/internships/python-internship/",
+    )
+    wellfound_urls: tuple[str, ...] = ("https://wellfound.com/role/l/software-engineer/india",)
 
 
 def parse_profile(content: str) -> tuple[Profile, bool]:
@@ -47,12 +69,15 @@ def parse_profile(content: str) -> tuple[Profile, bool]:
             if not isinstance(value, (list, tuple)) or not all(isinstance(item, str) and item.strip() for item in value):
                 raise ValueError(f"Profile {field.name} must be a list of nonempty strings")
             value = tuple(dict.fromkeys(item.strip() for item in value))
+            if field.name.endswith("_urls") and not all(item.startswith("https://") for item in value):
+                raise ValueError(f"Profile {field.name} must contain https:// URLs")
         elif type(default) is bool:
             if type(value) is not bool:
                 raise ValueError(f"Profile {field.name} must be true or false")
         elif type(default) is int:
-            if type(value) is not int or not 0 <= value <= 80:
-                raise ValueError(f"Profile {field.name} must be an integer from 0 to 80")
+            limit = 100 if field.name == "alert_threshold" else 80
+            if type(value) is not int or not 0 <= value <= limit:
+                raise ValueError(f"Profile {field.name} must be an integer from 0 to {limit}")
         elif not isinstance(value, str):
             raise ValueError(f"Profile {field.name} must be a string")
         values[field.name] = value

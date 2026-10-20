@@ -4,6 +4,10 @@ from os import getenv
 from profiles import Profile
 
 
+def _env_override(name: str) -> int | None:
+    return _env_int(name, 0) if getenv(name) else None
+
+
 def _env_int(name: str, default: int) -> int:
     value = getenv(name) or str(default)
     try:
@@ -15,49 +19,20 @@ def _env_int(name: str, default: int) -> int:
 PROFILE = Profile()
 PROFILE_IS_EXAMPLE = True  # Set False after replacing the example preferences.
 
-# A few broad searches are preferable to a large keyword cross-product.
-LINKEDIN_SEARCHES = (
-    "backend engineer intern",
-    "platform engineer intern",
-    "AI engineer intern",
-    "software engineer intern",
-    "graduate backend engineer",
-    "junior software engineer",
-)
-LINKEDIN_LOCATION = "India"  # Remote roles abroad are missed; India covers the metros and India-based remote.
-# India is a development search region, not a personal eligibility constraint.
-INDEED_SEARCHES = (
-    "backend developer intern",
-    "software engineer intern",
-    "AI engineer intern",
-    "junior backend developer",
-    "python developer",
-)
-INDEED_COUNTRY = getenv("JOB_WATCHER_INDEED_COUNTRY", "India")
-INDEED_LOCATION = getenv("JOB_WATCHER_INDEED_LOCATION", "")
-NAUKRI_SEARCHES = (
-    "backend developer fresher",
-    "software engineer fresher",
-    "ai engineer fresher",
-)
-NAUKRI_LOCATION = getenv("JOB_WATCHER_NAUKRI_LOCATION", "")
-INTERNSHALA_URLS = (
-    "https://internshala.com/internships/software-development-internship/",
-    "https://internshala.com/internships/backend-development-internship/",
-    "https://internshala.com/internships/python-internship/",
-    "https://internshala.com/internships/artificial-intelligence-internship/",
-)
-WELLFOUND_URLS = ("https://wellfound.com/role/l/software-engineer/india",)
+# Searches, regions, and the alert threshold are profile settings (profiles.py).
+# These environment variables still override the profile when set.
+INDEED_COUNTRY_OVERRIDE = getenv("JOB_WATCHER_INDEED_COUNTRY", "")
+INDEED_LOCATION_OVERRIDE = getenv("JOB_WATCHER_INDEED_LOCATION", "")
+NAUKRI_LOCATION_OVERRIDE = getenv("JOB_WATCHER_NAUKRI_LOCATION", "")
+ALERT_THRESHOLD_OVERRIDE = _env_override("JOB_WATCHER_ALERT_THRESHOLD")
 
 ENABLED_SOURCES = tuple(
-    name.strip() for name in (getenv("JOB_WATCHER_SOURCES") or "linkedin,internshala,indeed,naukri").split(",")
+    name.strip() for name in (getenv("JOB_WATCHER_SOURCES") or "linkedin,internshala,indeed,naukri,wellfound").split(",")
     if name.strip()
 )
-# Wellfound uses a fresh headless browser to read public listing data. Keep it
-# optional while checking reliability across scheduled GitHub Actions runs.
+# Wellfound uses a fresh headless browser, so it needs Chrome or Chromium on PATH.
 
-ALERT_THRESHOLD = _env_int("JOB_WATCHER_ALERT_THRESHOLD", 55)
-MAX_ALERTS_PER_RUN = _env_int("JOB_WATCHER_MAX_ALERTS", 10)
+MAX_ALERTS_PER_RUN = _env_int("JOB_WATCHER_MAX_ALERTS", 40)  # jobs per digest run
 MAX_POSTING_AGE_DAYS = _env_int("JOB_WATCHER_MAX_AGE_DAYS", 7)
 LINKEDIN_RESULTS_PER_SEARCH = 20
 INDEED_RESULTS_PER_SEARCH = _env_int("JOB_WATCHER_INDEED_RESULTS", 20)

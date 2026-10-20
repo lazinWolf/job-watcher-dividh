@@ -2,15 +2,61 @@
   "version": 1,
   "is_example": true,
   "profile": {
-    "role_terms": ["backend", "software engineer", "software developer", "full stack"],
-    "skills": ["python", "go", "node.js", "fastapi", "postgresql", "docker", "linux"],
-    "job_types": ["internship", "fulltime"],
+    "role_terms": [
+      "backend",
+      "software engineer",
+      "software developer",
+      "full stack"
+    ],
+    "skills": [
+      "python",
+      "go",
+      "node.js",
+      "fastapi",
+      "postgresql",
+      "docker",
+      "linux"
+    ],
+    "job_types": [
+      "internship",
+      "fulltime"
+    ],
     "career_stage": "early",
     "experience_years": 0,
     "max_required_years": 2,
     "allowed_locations": [],
     "preferred_workplaces": [],
     "excluded_companies": [],
-    "accept_unpaid_internships": true
+    "accept_unpaid_internships": true,
+    "country_locations": [],
+    "alert_threshold": 60,
+    "linkedin_searches": [
+      "backend engineer intern",
+      "software engineer intern",
+      "junior software engineer",
+      "graduate software engineer"
+    ],
+    "linkedin_location": "",
+    "indeed_searches": [
+      "software engineer intern",
+      "junior software engineer",
+      "python developer"
+    ],
+    "indeed_country": "India",
+    "indeed_location": "",
+    "naukri_searches": [
+      "software engineer fresher",
+      "python developer",
+      "backend developer"
+    ],
+    "naukri_location": "",
+    "internshala_urls": [
+      "https://internshala.com/internships/software-development-internship/",
+      "https://internshala.com/internships/backend-development-internship/",
+      "https://internshala.com/internships/python-internship/"
+    ],
+    "wellfound_urls": [
+      "https://wellfound.com/role/l/software-engineer/india"
+    ]
   }
 }

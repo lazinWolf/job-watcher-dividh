@@ -1,6 +1,7 @@
 """Wellfound's public Next.js data and isolated browser fetch."""
 from datetime import datetime, timezone
 from pathlib import Path
+import tempfile
 from types import SimpleNamespace
 
 import pytest
@@ -51,3 +52,19 @@ def test_browser_absence_is_reported(monkeypatch):
     monkeypatch.setattr(wellfound.shutil, "which", lambda name: None)
     with pytest.raises(RuntimeError, match="Chrome or Chromium"):
         wellfound.get_browser_page(PAGE_URL)
+
+
+def test_profile_cleanup_failure_keeps_the_fetched_page(monkeypatch):
+    html = '<script id="__NEXT_DATA__">{}</script>'
+    monkeypatch.setattr(wellfound.shutil, "which", lambda name: "/usr/bin/google-chrome" if name == "google-chrome" else None)
+    monkeypatch.setattr(wellfound.subprocess, "run", lambda args, **_: SimpleNamespace(returncode=0, stdout=html))
+
+    class RacingProfile(tempfile.TemporaryDirectory):
+        # Chrome helpers can add files while the folder is being removed.
+        def cleanup(self):
+            super().cleanup()
+            if not self._ignore_cleanup_errors:
+                raise OSError(39, "Directory not empty", self.name + "/Default")
+
+    monkeypatch.setattr(wellfound.tempfile, "TemporaryDirectory", RacingProfile)
+    assert wellfound.get_browser_page(PAGE_URL) == html

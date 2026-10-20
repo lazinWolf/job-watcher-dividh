@@ -9,7 +9,7 @@ from state import write_atomic
 LOGGER = logging.getLogger(__name__)
 HISTORY_VERSION = 1
 COUNTS = (
-    "collected", "new", "rejected", "below_threshold", "selected", "delivered",
+    "collected", "new", "rejected", "below_threshold", "awaiting_details", "selected", "delivered",
     "deferred", "evaluation_failed", "delivery_failed",
 )
 

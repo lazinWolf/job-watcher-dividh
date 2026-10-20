@@ -30,16 +30,17 @@ def live(monkeypatch):
 
 def test_report_records_every_decision_outcome_without_descriptions(tmp_path, monkeypatch, live):
     monkeypatch.setattr(main, "MAX_ALERTS_PER_RUN", 3)
+    monkeypatch.setattr("telegram.MESSAGE_LIMIT", 300)  # one company per digest message
     original = main.evaluate
     def evaluate(candidate, profile):
         if candidate.id == "test:7":
             raise RuntimeError("bad listing")
         return original(candidate, profile)
     monkeypatch.setattr(main, "evaluate", evaluate)
-    jobs = [job(1), job(2), job(3), job(4), job(5, "Senior Backend Engineer"),
+    jobs = [job(1, company="A"), job(2, company="B"), job(3, company="C"), job(4), job(5, "Senior Backend Engineer"),
             job(6, "Office Assistant"), job(7)]
-    def sender(candidate, _):
-        if candidate.id == "test:2":
+    def sender(text):
+        if "jobs/2" in text:
             raise RuntimeError("delivery unavailable")
     report = tmp_path / "report.json"
     status, summary = main.run(tmp_path / "seen.json", init_state=True, report_path=report,

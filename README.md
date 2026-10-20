@@ -1,10 +1,10 @@
 # Personal Job Watcher
 
-A small Python watcher for public LinkedIn, Internshala, Indeed, and Naukri listings. It filters and scores jobs against one editable profile, then sends selected jobs to Telegram. An optional Wellfound collector uses headless Chrome to read public search pages and is disabled by default while its reliability is evaluated. Applications stay manual.
+A small Python watcher for public LinkedIn, Internshala, Indeed, Naukri, and Wellfound listings. It filters and scores jobs against one editable profile, then sends the selected jobs to Telegram as one digest per run. The Wellfound collector uses headless Chrome to read public search pages, so it needs Chrome or Chromium installed. Applications stay manual.
 
 ## Set your profile
 
-Edit `PROFILE` and the search settings in `config.py`, or supply a validated JSON profile. The committed values are **examples for testing**, not a claim about the user's experience or location. The script automatically uses dry-run mode while the active profile is an example, so it cannot send generic-profile alerts.
+Supply a validated JSON profile, or edit the `Profile` defaults in `profiles.py`. The profile holds both matching preferences and search settings, so a personal copy of this repository needs no code changes. The committed values are **examples for testing**, not a claim about the user's experience or location. The script automatically uses dry-run mode while the active profile is an example, so it cannot send generic-profile alerts.
 
 To use a profile without editing Python:
 
@@ -16,15 +16,15 @@ cp profile.example.json profile.json
 
 `profile.json` is ignored by Git. The version-1 document contains `version`, an explicit boolean `is_example`, and a `profile` object. Unknown fields, invalid types, and unsupported choices stop collection before requests or delivery. Omitted profile fields inherit the example defaults. Only set `is_example` to `false` after entering real preferences and reviewing a dry run. The original `config.py` profile and `PROFILE_IS_EXAMPLE` flag remain the fallback.
 
-The profile adds exact company-name exclusions, actual experience (`experience_years`), and `career_stage`: `early`, `experienced`, or `any`. Early-career profiles retain the senior-title exclusion; experienced and unrestricted profiles can consider senior titles while still enforcing `max_required_years`. Explicit mandatory experience in descriptions is checked alongside source fields. Preferred experience and references to senior colleagues do not count as mandatory requirements.
+The profile adds exact company-name exclusions, actual experience (`experience_years`), and `career_stage`: `early`, `experienced`, or `any`. Early-career profiles retain the senior-title exclusion; experienced and unrestricted profiles can consider senior titles while still enforcing `max_required_years`. Explicit mandatory experience in descriptions is checked alongside source fields. Listings whose description asks for a registration, training, or similar fee or deposit are rejected, unless the text says there is no such fee. LinkedIn's seniority label from fetched details counts as early-career evidence for Internship and Entry level; early-career profiles reject Mid-Senior, Director, and Executive levels unless the title names an entry-level role. Preferred experience and references to senior colleagues do not count as mandatory requirements.
 
-For unattended runs, set `JOB_WATCHER_PROFILE_PATH` to a JSON file, or provide the complete document in `JOB_WATCHER_PROFILE_JSON`. An explicit `--profile` file takes precedence, followed by the environment file and then the JSON environment value. On GitHub Actions, an optional repository secret named `JOB_WATCHER_PROFILE_JSON` supplies the profile without committing personal data. With no supplied profile, the example and its delivery protection remain active.
+For unattended runs, set `JOB_WATCHER_PROFILE_PATH` to a JSON file, or provide the complete document in `JOB_WATCHER_PROFILE_JSON`. On GitHub Actions, a repository variable named `JOB_WATCHER_PROFILE_PATH` can name a profile file committed to the repository; the file is then public in a public repository. An explicit `--profile` file takes precedence, followed by the environment file and then the JSON environment value. On GitHub Actions, an optional repository secret named `JOB_WATCHER_PROFILE_JSON` supplies the profile without committing personal data. With no supplied profile, the example and its delivery protection remain active.
 
-In particular, configure the roles, skills, job types, maximum required experience, acceptable locations, remote/workplace preferences, each source's search terms and location, and Internshala pages. An empty `allowed_locations` means no location exclusion. Internshala and Naukri target India; the example Indeed country is also India. Search regions are independent of personal eligibility rules. The default searches and weights are starting points.
+Search settings are `linkedin_searches`, `linkedin_location`, `indeed_searches`, `indeed_country`, `indeed_location`, `naukri_searches`, `naukri_location`, `internshala_urls`, and `wellfound_urls`; `alert_threshold` sets the score needed for an alert. `country_locations` lists whole locations that name only a country or region, such as `India`: a listing located just there cannot be ruled out by `allowed_locations` and is kept for review. In particular, configure the roles, skills, job types, maximum required experience, acceptable locations, remote/workplace preferences, each source's search terms and location, and Internshala pages. An empty `allowed_locations` means no location exclusion. Internshala and Naukri target India; the example Indeed country is also India. Search regions are independent of personal eligibility rules. The default searches and weights are starting points.
 
 ## Local use
 
-Python 3.12 is used locally and in GitHub Actions. JobSpy is pinned to 1.2.0, which includes the updated Naukri adapter and uses `curl_cffi`. With `uv`:
+Python 3.12 is used locally and in GitHub Actions. JobSpy is pinned to 1.2.0, which includes the updated Naukri adapter and uses `curl_cffi`. Version 1.3.0 sorts age-limited Naukri searches by freshness; in a side-by-side test about a third fewer Naukri results were role-relevant (14 of 29 against 21 of 30), so the pin stays until that can be turned off. With `uv`:
 
 ```sh
 uv venv --python 3.12 .venv
@@ -50,7 +50,7 @@ LinkedIn selectively fetches public descriptions for up to 20 promising new list
 
 | Environment setting | Default | Purpose |
 | --- | --- | --- |
-| `JOB_WATCHER_SOURCES` | `linkedin,internshala,indeed,naukri` | Sources to collect; Wellfound is optional |
+| `JOB_WATCHER_SOURCES` | `linkedin,internshala,indeed,naukri,wellfound` | Sources to collect; leave out `wellfound` where Chrome is unavailable |
 | `JOB_WATCHER_INDEED_COUNTRY` | `India` | Indeed country; use a supported JobSpy country name |
 | `JOB_WATCHER_INDEED_LOCATION` | empty | Optional city/region search filter |
 | `JOB_WATCHER_NAUKRI_LOCATION` | empty | Optional city search filter |
@@ -60,7 +60,7 @@ LinkedIn selectively fetches public descriptions for up to 20 promising new list
 | `JOB_WATCHER_INTERNSHALA_DETAILS` | `10` | Detail fetches per run; hard cap 10, set 0 to disable |
 | `JOB_WATCHER_WELLFOUND_PAGES` | `2` | Pages per configured search; hard cap 2 |
 
-Edit `INDEED_SEARCHES` and `NAUKRI_SEARCHES` in `config.py` to tune the keywords. Indeed may match words in descriptions rather than titles; all results still pass through local rules. Its `hours_old` filter concerns addition to Indeed, while the employer posting date may be older; the evaluator checks posting age separately. Salary is retained when available, but was not disclosed in the initial live samples. [JobSpy documentation](https://github.com/speedyapply/JobSpy/blob/main/README.md)
+Set `indeed_searches` and `naukri_searches` in the profile to tune the keywords; the `JOB_WATCHER_INDEED_COUNTRY`, `JOB_WATCHER_INDEED_LOCATION`, and `JOB_WATCHER_NAUKRI_LOCATION` variables override the profile when set. Indeed may match words in descriptions rather than titles; all results still pass through local rules. Its `hours_old` filter concerns addition to Indeed, while the employer posting date may be older; the evaluator checks posting age separately. Salary is retained when available, but was not disclosed in the initial live samples. [JobSpy documentation](https://github.com/speedyapply/JobSpy/blob/main/README.md)
 
 Request errors logged internally by JobSpy are reported as query failures even if it returns an empty dataframe. A successful empty search is allowed, partial results are retained, and failure of one source does not prevent collection from another.
 
@@ -83,7 +83,7 @@ Create a GitHub repository for this directory and push the code to its default b
 
 The workflow runs the offline test suite before collection. It creates a `state` branch on its first run. Later runs read `seen.json` from that branch and write completed IDs back to it. The workflow grants itself `contents: write`; repository settings must allow its token to write. Runs are serialized with GitHub Actions concurrency. Do not delete or rename `state` casually, because that would make old listings look new.
 
-Run the workflow manually and inspect its Actions summary before relying on the schedule. Public job sites may block GitHub-hosted runners; a local successful request cannot prove remote collection will work. The enabled sources report failures independently. Use the manual workflow's `sources` input to probe `indeed,naukri` or `wellfound` alone. The current GitHub runner image includes Chrome, but the collector will fail with a clear error if it is unavailable. Wellfound remains outside the default `JOB_WATCHER_SOURCES` setting while we check repeated runner results over time.
+Run the workflow manually and inspect its Actions summary before relying on the schedule. Public job sites may block GitHub-hosted runners; a local successful request cannot prove remote collection will work. The enabled sources report failures independently. Use the manual workflow's `sources` input to probe `indeed,naukri` or `wellfound` alone. The current GitHub runner image includes Chrome, but the collector will fail with a clear error if it is unavailable. The default Wellfound page is broad: in one test, 5 of 65 listings suited an early-career profile, so a narrower `wellfound_urls` page may suit a profile better.
 
 The manual workflow's `dry_run` checkbox explicitly suppresses delivery and processed-ID changes, even for a configured real profile. It defaults to false to preserve ordinary manual and scheduled operation; example profiles enforce dry run regardless.
 
@@ -91,9 +91,9 @@ Scheduled GitHub Actions may run late or be dropped. The searches overlap previo
 
 ## Tuning and limits
 
-The initial threshold is 60. Role and early-career fit can supply 70 points, so a good listing with no technology detail can qualify. Skills, work arrangement, and freshness provide additional points. A maximum of 10 selected jobs are considered per run. Change these values in `config.py` or the documented `JOB_WATCHER_*` environment variables.
+The default `alert_threshold` is 60; `JOB_WATCHER_ALERT_THRESHOLD` overrides it when set. Role and early-career fit can supply 70 points, so a good listing with no technology detail can qualify. Skills, work arrangement, and freshness provide additional points. Each run sends one digest listing up to 40 selected jobs (`JOB_WATCHER_MAX_ALERTS`), best first: a score and linked title per job, under its company, with location, source, and pay when known. Several roles from the same company share one heading. A long digest is split into a few messages within Telegram's length limit, and a run with no matches sends nothing. Jobs over the limit stay unprocessed and are noted at the end of the digest. Dry runs print the digest instead of sending it. Change these values in the profile, `config.py`, or the documented `JOB_WATCHER_*` environment variables.
 
-The state records rejected, below-threshold, and successfully delivered listings. Failed delivery leaves a listing unprocessed, so it can be retried if the source returns it again. A crash between sending and saving state can produce a duplicate alert. A listing that disappears before retry can be missed. Those limits keep the project small; add durable pending alerts only if they cause a real problem.
+The state records rejected, below-threshold, and successfully delivered listings. If a digest message fails, its listings and those in later messages stay unprocessed, so they can be retried if the source returns them again. A crash between sending and saving state can produce a duplicate alert. A listing that disappears before retry can be missed. Those limits keep the project small; add durable pending alerts only if they cause a real problem.
 
 Changing scoring rules does not revisit old processed jobs. Use saved fixtures and dry runs to tune the evaluator. Set `JOB_WATCHER_STATE_PATH` to use a different state file locally.
 
@@ -101,7 +101,7 @@ Changing a JSON profile also does not rescore processed listings in the existing
 
 ## Monitoring
 
-Each run's `--report` JSON (version 2) includes a decision log: every new listing's source, title, company, location, URL, score, outcome (`sent`, `delivery_failed`, `deferred`, `rejected`, `below_threshold`, `evaluation_failed`, or `would_send` in dry run), and reasons, plus rejection-reason counts. Descriptions are still left out. The workflow always writes the report and uploads it as the `run-report` artifact for 30 days; use it to find listings that were rejected for the wrong reason.
+Each run's `--report` JSON (version 2) includes a decision log: every new listing's source, title, company, location, URL, score, outcome (`sent`, `delivery_failed`, `deferred`, `rejected`, `below_threshold`, `awaiting_details`, `evaluation_failed`, or `would_send` in dry run), reasons, and whether a description was available, plus rejection-reason counts. A listing scored without a description that could still reach the threshold through skill points is `awaiting_details`: it stays unprocessed so a later run can fetch its description, until it leaves the search results or exceeds the posting-age limit. Descriptions are still left out. The workflow always writes the report and uploads it as the `run-report` artifact for 30 days; use it to find listings that were rejected for the wrong reason.
 
 Live runs append a compact record (counts and per-source status, no listings) to `history.jsonl`, kept on the `state` branch next to `seen.json` and trimmed to the last `JOB_WATCHER_HISTORY_RUNS` runs (default 500). From that history the watcher sends a Telegram message when a source has failed or returned no listings for `JOB_WATCHER_HEALTH_RUNS` consecutive runs that included it (default 3), and another when it recovers. Dry runs write neither history nor health messages. Problems with history or health messages are logged and never fail a run. Locally the history file sits next to the state file unless `JOB_WATCHER_HISTORY_PATH` is set; set `JOB_WATCHER_LOG_LEVEL=DEBUG` for more detail.
 
