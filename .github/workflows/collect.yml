@@ -72,6 +72,8 @@ jobs:
           JOB_WATCHER_HISTORY_PATH: ${{ runner.temp }}/job-watcher-state/history.jsonl
           JOB_WATCHER_SOURCES: ${{ inputs.sources }}
           JOB_WATCHER_PROFILE_JSON: ${{ secrets.JOB_WATCHER_PROFILE_JSON }}
+          # Optional repository variable naming a committed profile file; it takes precedence over the secret.
+          JOB_WATCHER_PROFILE_PATH: ${{ vars.JOB_WATCHER_PROFILE_PATH }}
           JOB_WATCHER_DRY_RUN: ${{ inputs.dry_run }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

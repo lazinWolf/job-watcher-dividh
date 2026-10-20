@@ -11,7 +11,7 @@ from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
 from bs4 import BeautifulSoup
 
-from config import WELLFOUND_MAX_CARDS_PER_URL, WELLFOUND_PAGES_PER_SEARCH, WELLFOUND_URLS
+from config import PROFILE, WELLFOUND_MAX_CARDS_PER_URL, WELLFOUND_PAGES_PER_SEARCH, Profile
 from models import Job, canonical_url, job_id, merge_jobs, parse_posted_at
 
 LOGGER = logging.getLogger(__name__)
@@ -210,10 +210,10 @@ def parse_cards(html: str, page_url: str, *, now: datetime | None = None) -> lis
     return jobs
 
 
-def fetch_wellfound() -> list[Job]:
+def fetch_wellfound(*, profile: Profile = PROFILE) -> list[Job]:
     jobs: dict[str, Job] = {}
     failures = []
-    for base_url in WELLFOUND_URLS:
+    for base_url in profile.wellfound_urls:
         parts = urlsplit(base_url)
         query = dict(parse_qsl(parts.query, keep_blank_values=True))
         start_page = int(query.get("page", "1"))

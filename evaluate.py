@@ -15,6 +15,12 @@ EXPERIENCE_REQUIREMENT = re.compile(
 )
 MANDATORY_YEARS = re.compile(r"\b(\d{1,2})\s*\+\s*years?\s+(?:mandatory|required)\b", re.I)
 EXPERIENCE_PREFIX = re.compile(r"\b(?:experience|exp)\s*:\s*(\d{1,2})(?:\s*[-–]\s*\d{1,2})?\s*\+?\s*(?:years?|yrs?)\b", re.I)
+# Generic engineering titles. "Development" alone is too broad (business
+# development), so only technical qualifiers count.
+ENGINEERING_TITLE = re.compile(
+    r"\b(?:software|developer|engineering)\b|\b(?:full[ -]?stack|python|java(?:script)?)\s+development\b", re.I
+)
+REMOTE_TITLE = re.compile(r"\bremote\b|\bwork from home\b|\bwfh\b", re.I)
 REQUIRED_HEADINGS = {"requirements", "qualifications", "minimum qualifications", "required qualifications"}
 # Headings that end a requirements section. Requirement lists themselves are
 # often short phrases, so only recognizable section names end it.
@@ -86,10 +92,15 @@ def _mandatory_years(description: str | None) -> int | None:
     return max(years) if years else None
 
 
+def _workplace(job: Job) -> str | None:
+    # LinkedIn rarely sets a work arrangement, but titles often say "(Remote)".
+    return job.workplace_type or ("remote" if REMOTE_TITLE.search(job.title) else None)
+
+
 def role_relevant(job: Job, profile: Profile = PROFILE) -> bool:
     """Broad enough to enrich jobs that lack skill details or career evidence."""
     return any(_contains(job.title, term) for term in profile.role_terms) or bool(
-        re.search(r"\b(?:software|developer|engineering)\b", job.title, re.I)
+        ENGINEERING_TITLE.search(job.title)
     )
 
 
@@ -114,13 +125,15 @@ def evaluate(job: Job, profile: Profile = PROFILE, *, now: datetime | None = Non
             and job.compensation and re.search(r"\b(?:unpaid|no stipend)\b", job.compensation, re.I)):
         return Evaluation(None, ("unpaid internship",))
 
-    if profile.allowed_locations and job.location:
+    country_only = job.location and job.location.strip().casefold() in {
+        place.casefold() for place in profile.country_locations}
+    if profile.allowed_locations and job.location and not country_only:
         location = job.location.casefold()
         # "Remote" alone does not say where a person is eligible to work.
         if not any(place.casefold() in location for place in profile.allowed_locations):
             # A city-only preference cannot establish eligibility for a remote
             # role labelled with a country, so keep it for manual review.
-            if "remote" not in location and "everywhere" not in location:
+            if _workplace(job) != "remote" and "remote" not in location and "everywhere" not in location:
                 return Evaluation(None, ("location outside selected places",))
 
     if job.posted_at and (now - job.posted_at).total_seconds() > MAX_POSTING_AGE_DAYS * 86400:
@@ -131,7 +144,7 @@ def evaluate(job: Job, profile: Profile = PROFILE, *, now: datetime | None = Non
     if any(_contains(title, term) for term in profile.role_terms):
         score += 45
         reasons.append("preferred role")
-    elif re.search(r"\b(?:software|developer|engineering)\b", title, re.I):
+    elif ENGINEERING_TITLE.search(title):
         score += 15
         reasons.append("related engineering role")
 
@@ -157,9 +170,10 @@ def evaluate(job: Job, profile: Profile = PROFILE, *, now: datetime | None = Non
         score += min(20, len(skills) * 5)
         reasons.append("skills: " + ", ".join(skills[:4]))
 
-    if job.workplace_type and job.workplace_type in profile.preferred_workplaces:
+    workplace = _workplace(job)
+    if workplace and workplace in profile.preferred_workplaces:
         score += 5
-        reasons.append(f"preferred {job.workplace_type} work")
+        reasons.append(f"preferred {workplace} work")
 
     if job.posted_at and 0 <= (now - job.posted_at).total_seconds() <= 3 * 86400:
         score += 5

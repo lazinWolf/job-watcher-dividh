@@ -4,10 +4,7 @@ from dataclasses import replace
 
 from bs4 import BeautifulSoup
 
-from config import (
-    LINKEDIN_LOCATION, LINKEDIN_MAX_DETAIL_FETCHES, LINKEDIN_RESULTS_PER_SEARCH,
-    LINKEDIN_SEARCHES, PROFILE, Profile,
-)
+from config import LINKEDIN_MAX_DETAIL_FETCHES, LINKEDIN_RESULTS_PER_SEARCH, PROFILE, Profile
 from models import Job
 from sources import get_public_page
 from sources.enrichment import detail_text, enrich_jobs
@@ -36,7 +33,7 @@ def parse_detail(html: str, job: Job) -> Job:
 
 def fetch_linkedin(*, profile: Profile = PROFILE, processed_ids: set[str] | None = None) -> list[Job]:
     jobs = fetch_jobs(
-        "linkedin", LINKEDIN_SEARCHES, location=LINKEDIN_LOCATION,
+        "linkedin", profile.linkedin_searches, location=profile.linkedin_location,
         results_per_search=LINKEDIN_RESULTS_PER_SEARCH, hours_old=72,
         fetch_description=False,
     )

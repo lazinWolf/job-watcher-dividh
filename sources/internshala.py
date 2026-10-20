@@ -9,8 +9,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 
 from config import (
-    INTERNSHALA_MAX_CARDS_PER_URL, INTERNSHALA_MAX_DETAIL_FETCHES, INTERNSHALA_URLS,
-    PROFILE, Profile,
+    INTERNSHALA_MAX_CARDS_PER_URL, INTERNSHALA_MAX_DETAIL_FETCHES, PROFILE, Profile,
 )
 from models import Job, canonical_url, job_id, merge_jobs, parse_posted_at
 from sources import get_public_page
@@ -94,7 +93,7 @@ def parse_detail(html: str, job: Job) -> Job:
 def fetch_internshala(*, profile: Profile = PROFILE, processed_ids: set[str] | None = None) -> list[Job]:
     jobs = []
     failures = []
-    for url in INTERNSHALA_URLS:
+    for url in profile.internshala_urls:
         try:
             jobs.extend(parse_cards(get_public_page(url), url))
         except Exception as exc:

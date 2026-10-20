@@ -4,7 +4,7 @@ A small Python watcher for public LinkedIn, Internshala, Indeed, and Naukri list
 
 ## Set your profile
 
-Edit `PROFILE` and the search settings in `config.py`, or supply a validated JSON profile. The committed values are **examples for testing**, not a claim about the user's experience or location. The script automatically uses dry-run mode while the active profile is an example, so it cannot send generic-profile alerts.
+Supply a validated JSON profile, or edit the `Profile` defaults in `profiles.py`. The profile holds both matching preferences and search settings, so a personal copy of this repository needs no code changes. The committed values are **examples for testing**, not a claim about the user's experience or location. The script automatically uses dry-run mode while the active profile is an example, so it cannot send generic-profile alerts.
 
 To use a profile without editing Python:
 
@@ -18,9 +18,9 @@ cp profile.example.json profile.json
 
 The profile adds exact company-name exclusions, actual experience (`experience_years`), and `career_stage`: `early`, `experienced`, or `any`. Early-career profiles retain the senior-title exclusion; experienced and unrestricted profiles can consider senior titles while still enforcing `max_required_years`. Explicit mandatory experience in descriptions is checked alongside source fields. Preferred experience and references to senior colleagues do not count as mandatory requirements.
 
-For unattended runs, set `JOB_WATCHER_PROFILE_PATH` to a JSON file, or provide the complete document in `JOB_WATCHER_PROFILE_JSON`. An explicit `--profile` file takes precedence, followed by the environment file and then the JSON environment value. On GitHub Actions, an optional repository secret named `JOB_WATCHER_PROFILE_JSON` supplies the profile without committing personal data. With no supplied profile, the example and its delivery protection remain active.
+For unattended runs, set `JOB_WATCHER_PROFILE_PATH` to a JSON file, or provide the complete document in `JOB_WATCHER_PROFILE_JSON`. On GitHub Actions, a repository variable named `JOB_WATCHER_PROFILE_PATH` can name a profile file committed to the repository; the file is then public in a public repository. An explicit `--profile` file takes precedence, followed by the environment file and then the JSON environment value. On GitHub Actions, an optional repository secret named `JOB_WATCHER_PROFILE_JSON` supplies the profile without committing personal data. With no supplied profile, the example and its delivery protection remain active.
 
-In particular, configure the roles, skills, job types, maximum required experience, acceptable locations, remote/workplace preferences, each source's search terms and location, and Internshala pages. An empty `allowed_locations` means no location exclusion. Internshala and Naukri target India; the example Indeed country is also India. Search regions are independent of personal eligibility rules. The default searches and weights are starting points.
+Search settings are `linkedin_searches`, `linkedin_location`, `indeed_searches`, `indeed_country`, `indeed_location`, `naukri_searches`, `naukri_location`, `internshala_urls`, and `wellfound_urls`; `alert_threshold` sets the score needed for an alert. `country_locations` lists whole locations that name only a country or region, such as `India`: a listing located just there cannot be ruled out by `allowed_locations` and is kept for review. In particular, configure the roles, skills, job types, maximum required experience, acceptable locations, remote/workplace preferences, each source's search terms and location, and Internshala pages. An empty `allowed_locations` means no location exclusion. Internshala and Naukri target India; the example Indeed country is also India. Search regions are independent of personal eligibility rules. The default searches and weights are starting points.
 
 ## Local use
 
@@ -60,7 +60,7 @@ LinkedIn selectively fetches public descriptions for up to 20 promising new list
 | `JOB_WATCHER_INTERNSHALA_DETAILS` | `10` | Detail fetches per run; hard cap 10, set 0 to disable |
 | `JOB_WATCHER_WELLFOUND_PAGES` | `2` | Pages per configured search; hard cap 2 |
 
-Edit `INDEED_SEARCHES` and `NAUKRI_SEARCHES` in `config.py` to tune the keywords. Indeed may match words in descriptions rather than titles; all results still pass through local rules. Its `hours_old` filter concerns addition to Indeed, while the employer posting date may be older; the evaluator checks posting age separately. Salary is retained when available, but was not disclosed in the initial live samples. [JobSpy documentation](https://github.com/speedyapply/JobSpy/blob/main/README.md)
+Set `indeed_searches` and `naukri_searches` in the profile to tune the keywords; the `JOB_WATCHER_INDEED_COUNTRY`, `JOB_WATCHER_INDEED_LOCATION`, and `JOB_WATCHER_NAUKRI_LOCATION` variables override the profile when set. Indeed may match words in descriptions rather than titles; all results still pass through local rules. Its `hours_old` filter concerns addition to Indeed, while the employer posting date may be older; the evaluator checks posting age separately. Salary is retained when available, but was not disclosed in the initial live samples. [JobSpy documentation](https://github.com/speedyapply/JobSpy/blob/main/README.md)
 
 Request errors logged internally by JobSpy are reported as query failures even if it returns an empty dataframe. A successful empty search is allowed, partial results are retained, and failure of one source does not prevent collection from another.
 
@@ -91,7 +91,7 @@ Scheduled GitHub Actions may run late or be dropped. The searches overlap previo
 
 ## Tuning and limits
 
-The initial threshold is 60. Role and early-career fit can supply 70 points, so a good listing with no technology detail can qualify. Skills, work arrangement, and freshness provide additional points. A maximum of 10 selected jobs are considered per run. Change these values in `config.py` or the documented `JOB_WATCHER_*` environment variables.
+The default `alert_threshold` is 60; `JOB_WATCHER_ALERT_THRESHOLD` overrides it when set. Role and early-career fit can supply 70 points, so a good listing with no technology detail can qualify. Skills, work arrangement, and freshness provide additional points. A maximum of 10 selected jobs are considered per run. Change these values in the profile, `config.py`, or the documented `JOB_WATCHER_*` environment variables.
 
 The state records rejected, below-threshold, and successfully delivered listings. Failed delivery leaves a listing unprocessed, so it can be retried if the source returns it again. A crash between sending and saving state can produce a duplicate alert. A listing that disappears before retry can be missed. Those limits keep the project small; add durable pending alerts only if they cause a real problem.
 

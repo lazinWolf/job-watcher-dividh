@@ -14,7 +14,7 @@ import time
 from typing import Callable
 
 from config import (
-    ALERT_THRESHOLD, ENABLED_SOURCES, HEALTH_ALERT_RUNS, HISTORY_KEEP_RUNS,
+    ALERT_THRESHOLD_OVERRIDE, ENABLED_SOURCES, HEALTH_ALERT_RUNS, HISTORY_KEEP_RUNS,
     MAX_ALERTS_PER_RUN, PROFILE, PROFILE_IS_EXAMPLE,
 )
 from profiles import parse_profile
@@ -141,7 +141,8 @@ def run(
             if name in {"linkedin", "internshala"}:
                 fetchers[name] = lambda fetcher=fetcher: fetcher(profile=profile, processed_ids=state.processed)
             else:
-                fetchers[name] = fetcher
+                fetchers[name] = lambda fetcher=fetcher: fetcher(profile=profile)
+    threshold = ALERT_THRESHOLD_OVERRIDE if ALERT_THRESHOLD_OVERRIDE is not None else profile.alert_threshold
     summary = RunSummary()
     source_status = []
     combined: dict[str, Job] = {}
@@ -206,7 +207,7 @@ def run(
             LOGGER.info("Rejected %s: %s", job.id, "; ".join(result.reasons))
             if not dry_run:
                 state.processed.add(job.id)
-        elif result.score < ALERT_THRESHOLD:
+        elif result.score < threshold:
             summary.below_threshold += 1
             summary.decisions.append(_decision(job, "below_threshold", result))
             LOGGER.info("Below threshold %s: %s", job.id, result.score)

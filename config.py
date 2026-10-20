@@ -4,6 +4,10 @@ from os import getenv
 from profiles import Profile
 
 
+def _env_override(name: str) -> int | None:
+    return _env_int(name, 0) if getenv(name) else None
+
+
 def _env_int(name: str, default: int) -> int:
     value = getenv(name) or str(default)
     try:
@@ -15,34 +19,12 @@ def _env_int(name: str, default: int) -> int:
 PROFILE = Profile()
 PROFILE_IS_EXAMPLE = True  # Set False after replacing the example preferences.
 
-# A few broad searches are preferable to a large keyword cross-product.
-LINKEDIN_SEARCHES = (
-    "backend engineer intern",
-    "software engineer intern",
-    "junior software engineer",
-    "graduate software engineer",
-)
-LINKEDIN_LOCATION = ""  # Fill in once your target region is known.
-# India is a development search region, not a personal eligibility constraint.
-INDEED_SEARCHES = (
-    "software engineer intern",
-    "junior software engineer",
-    "python developer",
-)
-INDEED_COUNTRY = getenv("JOB_WATCHER_INDEED_COUNTRY", "India")
-INDEED_LOCATION = getenv("JOB_WATCHER_INDEED_LOCATION", "")
-NAUKRI_SEARCHES = (
-    "software engineer fresher",
-    "python developer",
-    "backend developer",
-)
-NAUKRI_LOCATION = getenv("JOB_WATCHER_NAUKRI_LOCATION", "")
-INTERNSHALA_URLS = (
-    "https://internshala.com/internships/software-development-internship/",
-    "https://internshala.com/internships/backend-development-internship/",
-    "https://internshala.com/internships/python-internship/",
-)
-WELLFOUND_URLS = ("https://wellfound.com/role/l/software-engineer/india",)
+# Searches, regions, and the alert threshold are profile settings (profiles.py).
+# These environment variables still override the profile when set.
+INDEED_COUNTRY_OVERRIDE = getenv("JOB_WATCHER_INDEED_COUNTRY", "")
+INDEED_LOCATION_OVERRIDE = getenv("JOB_WATCHER_INDEED_LOCATION", "")
+NAUKRI_LOCATION_OVERRIDE = getenv("JOB_WATCHER_NAUKRI_LOCATION", "")
+ALERT_THRESHOLD_OVERRIDE = _env_override("JOB_WATCHER_ALERT_THRESHOLD")
 
 ENABLED_SOURCES = tuple(
     name.strip() for name in (getenv("JOB_WATCHER_SOURCES") or "linkedin,internshala,indeed,naukri").split(",")
@@ -51,7 +33,6 @@ ENABLED_SOURCES = tuple(
 # Wellfound uses a fresh headless browser to read public listing data. Keep it
 # optional while checking reliability across scheduled GitHub Actions runs.
 
-ALERT_THRESHOLD = _env_int("JOB_WATCHER_ALERT_THRESHOLD", 60)
 MAX_ALERTS_PER_RUN = _env_int("JOB_WATCHER_MAX_ALERTS", 10)
 MAX_POSTING_AGE_DAYS = _env_int("JOB_WATCHER_MAX_AGE_DAYS", 7)
 LINKEDIN_RESULTS_PER_SEARCH = 20
